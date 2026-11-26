@@ -13,10 +13,20 @@ const MAX_VIEWERS = 20000;
 
 // Each thread is ONE KV entry "post:<id>" holding the post, its reactions, replies and viewers.
 // The id starts with an inverted timestamp, so listing keys returns the newest threads first.
+// Approximate visitor state/region from Cloudflare (IP based, no permission popup). Shown for anonymous posts too.
+const regionOf = (req: Request) => clean((req as any).cf?.region, 40);
+
+// Names that only the real admin may use (posting from /admin).
+const reservedName = (name: string) => /admin|gtofficial|moderator/.test(name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+const isAdmin = async (req: Request, env: Env) => {
+  const password = adminPassword(env);
+  return !!password && (await checkToken(req, password));
+};
+
 const newId = (now: number) => String(9_999_999_999_999 - now).padStart(13, "0") + "-" + crypto.randomUUID();
 
 type Doc = {
-  id: string; name: string; anonymous: boolean; text: string; createdAt: number; visitorId: string;
+  id: string; name: string; region?: string; admin?: boolean; anonymous: boolean; text: string; createdAt: number; visitorId: string;
   reactions: Record<string, string[]>; // emoji -> visitor ids
   comments: any[]; // replies
   views: Record<string, number>; // visitor id -> 1 (unique viewers)
@@ -47,7 +57,7 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     const docs = await loadPosts(env, ADMIN_LIMIT);
     return reply({
       posts: docs.map((p) => ({
-        id: p.id, name: p.name || "Anonymous", anonymous: Boolean(p.anonymous), text: p.text, createdAt: p.createdAt,
+        id: p.id, name: p.name || "Anonymous", region: p.region || "", admin: !!p.admin, anonymous: Boolean(p.anonymous), text: p.text, createdAt: p.createdAt,
         reactionTotal: reactionList(p, null).reduce((n, r) => n + r.count, 0), views: viewCount(p), replyCount: replyCount(p),
       })),
     });
@@ -61,7 +71,7 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     const visitorId = validVisitor(raw) ? raw : null;
     return reply({
       posts: docs.map((p) => ({
-        id: p.id, name: p.name, anonymous: p.anonymous, text: p.text, createdAt: p.createdAt,
+        id: p.id, name: p.name, region: p.region || "", admin: !!p.admin, anonymous: p.anonymous, text: p.text, createdAt: p.createdAt,
         reactions: reactionList(p, visitorId), views: viewCount(p), replyCount: replyCount(p),
       })),
     });
@@ -89,30 +99,38 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
   try { body = await req.json(); } catch { return reply({ error: "Invalid JSON." }, 400); }
 
   if (action === "create") {
-    const text = clean(body.text, 2000), name = clean(body.name, 30), visitorId = body.visitorId, anonymous = body.anonymous === true;
+    const asAdmin = body.asAdmin === true;
+    if (asAdmin && !(await isAdmin(req, env))) return reply({ error: "Admin login required." }, 401);
+    const text = clean(body.text, 2000), name = asAdmin ? "Admin" : clean(body.name, 30), anonymous = asAdmin ? false : body.anonymous === true;
+    const visitorId = asAdmin ? "admin_console" : body.visitorId;
     if (!text) return reply({ error: "Write something before posting." }, 400);
     if (!anonymous && !name) return reply({ error: "Display name is required unless you post anonymously." }, 400);
+    if (!asAdmin && !anonymous && reservedName(name)) return reply({ error: "That name is reserved. Please choose another name." }, 400);
     if (!validVisitor(visitorId)) return reply({ error: "Refresh the page and try again." }, 400);
     const now = Date.now(), id = newId(now);
-    const doc: Doc = { id, name: anonymous ? "Anonymous" : name, anonymous, text, createdAt: now, visitorId, reactions: {}, comments: [], views: {} };
+    const region = asAdmin ? "" : regionOf(req);
+    const doc: Doc = { id, name: anonymous ? "Anonymous" : name, region, admin: asAdmin, anonymous, text, createdAt: now, visitorId, reactions: {}, comments: [], views: {} };
     try {
       await setJSON(env.KV, `post:${id}`, doc);
-      return reply({ post: { id, name: doc.name, anonymous, text, createdAt: now } }, 201);
+      return reply({ post: { id, name: doc.name, region, admin: asAdmin, anonymous, text, createdAt: now } }, 201);
     } catch (err) {
       return reply({ error: `Post save failed in storage: ${err instanceof Error ? err.message : String(err)}` }, 503);
     }
   }
 
   if (action === "comment") { // a reply in the thread
-    const postId = body.postId, text = clean(body.text, 500), name = clean(body.name, 30), visitorId = body.visitorId, anonymous = body.anonymous === true;
+    const asAdmin = body.asAdmin === true;
+    if (asAdmin && !(await isAdmin(req, env))) return reply({ error: "Admin login required." }, 401);
+    const postId = body.postId, text = clean(body.text, 500), name = asAdmin ? "Admin" : clean(body.name, 30), visitorId = asAdmin ? "admin_console" : body.visitorId, anonymous = asAdmin ? false : body.anonymous === true;
     if (!validId(postId) || !validVisitor(visitorId)) return reply({ error: "Invalid reply." }, 400);
     if (!text) return reply({ error: "Write a reply first." }, 400);
     if (!anonymous && !name) return reply({ error: "Display name is required unless you reply anonymously." }, 400);
+    if (!asAdmin && !anonymous && reservedName(name)) return reply({ error: "That name is reserved. Please choose another name." }, 400);
     const doc: Doc | null = await getJSON(env.KV, `post:${postId}`);
     if (!doc) return reply({ error: "Post not found." }, 404);
     const comments = Array.isArray(doc.comments) ? doc.comments : [];
     if (comments.length >= MAX_REPLIES) return reply({ error: "This thread has reached its reply limit." }, 409);
-    const comment = { id: crypto.randomUUID(), name: anonymous ? "Anonymous" : name, anonymous, text, createdAt: Date.now() };
+    const comment = { id: crypto.randomUUID(), name: anonymous ? "Anonymous" : name, region: asAdmin ? "" : regionOf(req), admin: asAdmin, anonymous, text, createdAt: Date.now() };
     comments.push(comment);
     doc.comments = comments;
     await setJSON(env.KV, `post:${postId}`, doc);

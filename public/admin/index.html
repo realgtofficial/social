@@ -63,7 +63,7 @@ input::placeholder { color: #6f69a3; }
 .state.dirty { color: var(--gold); }
 .state.dirty::before { background: var(--gold); }
 .savebtns { display: flex; gap: 10px; flex-wrap: wrap; }
-.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
+.admin-red{color:var(--red)}.admin-post-box{display:grid;gap:8px;margin:0 0 18px;padding:14px;border:2px solid var(--red);background:var(--surface)}.admin-post-box textarea{width:100%}.admin-tag{background:var(--red);color:#1a0003;font-size:11px;font-weight:800;padding:2px 6px;margin-left:6px}.mod-reply{display:grid;gap:6px;margin-top:10px}.mod-reply textarea{width:100%}.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
 .tab { font-family: var(--pixel); font-size: 14px; padding: 9px 14px; background: var(--surface); border: 2px solid var(--line); cursor: pointer; }
 .tab[aria-selected="true"] { background: var(--green); color: #052b10; border-color: #000; }
@@ -153,7 +153,7 @@ input::placeholder { color: #6f69a3; }
   <section class="panel" id="p-day100" role="tabpanel" aria-labelledby="t-day100" hidden></section>
   <section class="panel" id="p-series" role="tabpanel" aria-labelledby="t-series" hidden></section>
   <section class="panel" id="p-community" role="tabpanel" aria-labelledby="t-community" hidden></section>
-  <section class="panel" id="p-moderation" role="tabpanel" aria-labelledby="t-moderation" hidden><h2>Let's Discuss moderation</h2><p class="lead">Review community posts. Delete a post to remove it along with its comments and reactions.</p><div class="rowbtns"><button class="btn ghost" type="button" id="moderationRefresh">Refresh posts</button></div><div id="moderationStatus" class="lead">Choose Refresh posts to load submissions.</div><div id="moderationList" class="moderation-list"></div></section>
+  <section class="panel" id="p-moderation" role="tabpanel" aria-labelledby="t-moderation" hidden><h2>Let's Discuss moderation</h2><p class="lead">Review community posts. Delete a post to remove it along with its comments and reactions.</p><div class="admin-post-box"><label class="fl" for="adminPostText">Post as <b class="admin-red">Admin</b> <small>(shows in red on the public board)</small></label><textarea id="adminPostText" maxlength="2000" rows="3" placeholder="Write an announcement or start a thread as Admin (max 2000 characters)"></textarea><div class="rowbtns"><button class="btn" type="button" id="adminPostBtn">Post as Admin</button><span id="adminPostStatus" class="lead"></span></div></div><div class="rowbtns"><button class="btn ghost" type="button" id="moderationRefresh">Refresh posts</button></div><div id="moderationStatus" class="lead">Choose Refresh posts to load submissions.</div><div id="moderationList" class="moderation-list"></div></section>
 
   <p class="help">Changes go live for every visitor as soon as you press Save. Tip: Ctrl+S (or Cmd+S) also saves.</p>
 </div>
@@ -252,10 +252,23 @@ input::placeholder { color: #6f69a3; }
       var posts = res.data.posts || []; status.textContent = posts.length ? posts.length + ' post(s) loaded.' : 'No community posts yet.';
       posts.forEach(function (p) {
         var card = el('article', { class: 'moderation-post' });
-        var author = p.anonymous ? 'Anonymous' : (p.name || 'Unnamed');
-        card.appendChild(el('header', {}, [el('b', { text: author }), el('span', { class: 'moderation-meta', text: new Date(p.createdAt || Date.now()).toLocaleString() })]));
+        var author = p.admin ? 'Admin' : (p.anonymous ? 'Anonymous' : (p.name || 'Unnamed')) + (p.region ? ' | ' + p.region : '');
+        card.appendChild(el('header', {}, [el('span', {}, [el('b', { text: author, class: p.admin ? 'admin-red' : '' }), p.admin ? el('span', { class: 'admin-tag', text: 'ADMIN' }) : null]), el('span', { class: 'moderation-meta', text: new Date(p.createdAt || Date.now()).toLocaleString() })]));
         card.appendChild(el('p', { text: p.text || '' }));
         card.appendChild(el('div', { class: 'moderation-meta', text: 'Reactions ' + (p.reactionTotal || 0) + ' · Replies ' + (p.replyCount || 0) + ' · Views ' + (p.views || 0) }));
+        var rbox = el('textarea', { maxlength: '500', rows: '2', placeholder: 'Reply as Admin (max 500 characters)' });
+        var rbtn = el('button', { type: 'button', class: 'mini', text: 'Reply as Admin' });
+        rbtn.addEventListener('click', function () {
+          var t = rbox.value.trim(); if (!t) return;
+          rbtn.disabled = true;
+          api('/api/discuss?action=comment', 'POST', { asAdmin: true, postId: p.id, text: t }).then(function (out) {
+            rbtn.disabled = false;
+            if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+            if (!out.ok) { toast(out.data.error || 'Could not send reply.', true); return; }
+            rbox.value = ''; toast('Admin reply posted.'); loadModeration();
+          }).catch(function () { rbtn.disabled = false; toast('Could not reach server.', true); });
+        });
+        card.appendChild(el('div', { class: 'mod-reply' }, [rbox, rbtn]));
         var del = el('button', { type: 'button', class: 'mini danger', text: 'Delete post' });
         del.addEventListener('click', function () {
           if (!confirm('Delete this thread and all its replies and reactions? This cannot be undone.')) return;
@@ -271,6 +284,17 @@ input::placeholder { color: #6f69a3; }
     }).catch(function () { status.textContent = 'Could not load community posts. Check connection and try again.'; });
   }
   $('moderationRefresh').addEventListener('click', loadModeration);
+  $('adminPostBtn').addEventListener('click', function () {
+    var box = $('adminPostText'), st = $('adminPostStatus'), t = box.value.trim();
+    if (!t) { st.textContent = 'Write something first.'; return; }
+    var b = $('adminPostBtn'); b.disabled = true; st.textContent = 'Posting…';
+    api('/api/discuss?action=create', 'POST', { asAdmin: true, text: t }).then(function (out) {
+      b.disabled = false;
+      if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+      if (!out.ok) { st.textContent = out.data.error || 'Could not post.'; return; }
+      box.value = ''; st.textContent = 'Posted as Admin.'; loadModeration();
+    }).catch(function () { b.disabled = false; st.textContent = 'Could not reach server.'; });
+  });
 
   /* ---------- building blocks ---------- */
   function textIn(value, onInput, extra) {
