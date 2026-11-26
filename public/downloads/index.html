@@ -38,6 +38,8 @@ h1, h2, h3 { font-family: var(--pixel); margin: 0; line-height: 1.15; text-wrap:
 .head h1::before { content: "▶ "; color: var(--green); }
 .head p { color: var(--muted); margin: 12px 0 0; max-width: 60ch; }
 
+.sortbar { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.sortbar select { background: var(--surface); color: var(--ink); border: 2px solid var(--line); padding: 8px 10px; font: inherit; cursor: pointer; }
 .list { display: grid; gap: 20px; padding-block: 18px 40px; }
 .empty { padding: 28px; text-align: center; color: var(--muted); background: var(--surface); border: 3px dashed var(--line); }
 
@@ -95,6 +97,8 @@ footer { border-top: 3px solid var(--line); padding-block: 22px 40px; color: var
     <h1>Downloads</h1>
     <p>Tap a link to download. Like something? React with any emoji.</p>
   </header>
+
+  <div class="sortbar"><label for="sort">Sort</label><select id="sort" aria-label="Sort downloads"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option><option value="za">Z to A</option></select></div>
 
   <main class="list" id="list" aria-live="polite"><div class="empty">Loading downloads…</div></main>
 
@@ -164,9 +168,19 @@ footer { border-top: 3px solid var(--line); padding-block: 22px 40px; color: var
     }).join('');
     return '<article class="dl" data-id="' + esc(p.id) + '"><h2>' + esc(p.title) + '</h2><div class="when">' + esc(when(p.createdAt)) + '</div><ul class="links">' + links + '</ul><div class="reacts">' + reactsHtml(p) + '</div></article>';
   }
+  var SORTKEY = 'gt-downloads-sort-v1', sortEl = document.getElementById('sort');
+  try { var sv = localStorage.getItem(SORTKEY); if (sv && /^(new|old|az|za)$/.test(sv)) sortEl.value = sv; } catch (e) {}
+  sortEl.addEventListener('change', function () { try { localStorage.setItem(SORTKEY, sortEl.value); } catch (e) {} render(); });
+  function sorted() {
+    var a = posts.slice(), mode = sortEl.value, byNew = function (x, y) { return (y.createdAt || 0) - (x.createdAt || 0); };
+    if (mode === 'old') a.sort(function (x, y) { return (x.createdAt || 0) - (y.createdAt || 0); });
+    else if (mode === 'az' || mode === 'za') { var f = mode === 'az' ? 1 : -1; a.sort(function (x, y) { return f * String(x.title || '').localeCompare(String(y.title || ''), undefined, { sensitivity: 'base', numeric: true }) || byNew(x, y); }); }
+    else a.sort(byNew);
+    return a;
+  }
   function render() {
     if (!posts.length) { list.innerHTML = '<div class="empty">No downloads yet. Check back soon!</div>'; return; }
-    list.innerHTML = posts.map(cardHtml).join('');
+    list.innerHTML = sorted().map(cardHtml).join('');
   }
   function load() {
     api('/api/downloads?visitorId=' + encodeURIComponent(visitorId)).then(function (d) { posts = d.posts || []; render(); })

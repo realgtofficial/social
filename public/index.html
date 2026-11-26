@@ -188,6 +188,7 @@ body { overflow-x: clip; }
 .discuss-form textarea { resize:vertical; min-height:110px; }
 .discuss-form input:disabled { opacity:.55; } .discuss-status { color:var(--gold); font-size:14px; min-height:1.2em; }
 .discuss-list-head { margin:30px 0 16px; } .discuss-list-head h3 { font-size:clamp(18px,3vw,24px); }
+.discuss-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; } .discuss-sort { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; font-weight:600; } .discuss-sort select { background:var(--surface); color:var(--ink); border:2px solid var(--line); padding:8px 10px; font:inherit; cursor:pointer; }
 .discuss-refresh { background:var(--surface); color:var(--ink); border:2px solid var(--line); padding:8px 12px; cursor:pointer; font:inherit; }
 .discuss-posts { display:grid; gap:14px; } .discuss-empty { padding:22px; text-align:center; color:var(--muted); background:var(--surface); border:2px solid var(--line); }
 .discuss-post { background:var(--surface); border:2px solid var(--line); padding:18px; overflow-wrap:anywhere; }
@@ -314,7 +315,7 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
       <div class="discuss-form-foot"><small id="discussCount">0 / 2000</small><button class="btn gold" type="submit">POST</button></div>
       <div id="discussStatus" role="status" class="discuss-status"></div>
     </form>
-    <div class="discuss-list-head"><h3>Latest threads</h3><button type="button" id="discussRefresh" class="discuss-refresh">↻ Refresh</button></div>
+    <div class="discuss-list-head"><h3>Latest threads</h3><div class="discuss-tools"><label class="discuss-sort"><span>Sort</span><select id="discussSort" aria-label="Sort threads"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="az">A to Z</option><option value="za">Z to A</option></select></label><button type="button" id="discussRefresh" class="discuss-refresh">↻ Refresh</button></div></div>
     <div id="discussPosts" class="discuss-posts"><div class="discuss-empty">Loading community posts…</div></div>
   </section>
 
@@ -646,7 +647,14 @@ var yrEl = document.getElementById('yr'); if (yrEl) yrEl.textContent = new Date(
   function reactsHtml(list){return (list||[]).map(function(r){return '<button type="button" class="react" data-emoji="'+escHtml(r.emoji)+'" aria-pressed="'+(!!r.mine)+'" aria-label="React '+escHtml(r.emoji)+'">'+escHtml(r.emoji)+(r.count?' <b>'+r.count+'</b>':'')+'</button>';}).join('');}
   function viewsText(n){n=n||0;return '👁 '+n+(n===1?' view':' views');}
   function replyBtnText(n){n=n||0;return '💬 '+(n?n+(n===1?' reply':' replies'):'Reply');}
+  var SORTKEY='gt-discuss-sort-v1', sortEl=document.getElementById('discussSort'), lastPosts=[];
+  function sortPosts(list,mode){var a=list.slice();var byNew=function(x,y){return (y.createdAt||0)-(x.createdAt||0);};
+    if(mode==='old')a.sort(function(x,y){return (x.createdAt||0)-(y.createdAt||0);});
+    else if(mode==='az'||mode==='za'){var f=mode==='az'?1:-1;a.sort(function(x,y){return f*String(x.text||'').localeCompare(String(y.text||''),undefined,{sensitivity:'base',numeric:true})||byNew(x,y);});}
+    else a.sort(byNew);return a;}
+  if(sortEl){try{var sv=localStorage.getItem(SORTKEY);if(sv&&/^(new|old|az|za)$/.test(sv))sortEl.value=sv;}catch(e){}sortEl.addEventListener('change',function(){try{localStorage.setItem(SORTKEY,sortEl.value);}catch(e){}render(lastPosts);});}
   function render(posts){
+    lastPosts=posts;posts=sortPosts(posts,sortEl?sortEl.value:'new');
     if(!posts.length){root.innerHTML='<div class="discuss-empty">No threads yet. Start the first one!</div>';return;}
     root.innerHTML=posts.map(function(p){return '<article class="discuss-post'+(p.admin?' admin-post':'')+'" data-post="'+escHtml(p.id)+'"><div class="discuss-post-top"><div><span class="discuss-author">'+who(p)+'</span>'+'</div><time class="discuss-time">'+escHtml(date(p.createdAt))+'</time></div><div class="discuss-post-text">'+escHtml(p.text)+'</div><div class="discuss-actions"><span class="discuss-reacts">'+reactsHtml(p.reactions)+'</span><button type="button" class="thread-btn" data-thread>'+replyBtnText(p.replyCount)+'</button><span class="discuss-views" data-views>'+viewsText(p.views)+'</span></div><div class="discuss-comment-area" hidden></div></article>';}).join('');
   }
