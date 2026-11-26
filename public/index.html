@@ -64,7 +64,6 @@ h1, h2, h3 { font-family: var(--pixel); margin: 0; line-height: 1.1; text-wrap: 
 .hero-chip { position: absolute; left: 12px; bottom: 12px; z-index:4; background: #000; color: var(--gold); font-family: var(--pixel); font-size: 13px; padding: 6px 10px; pointer-events:none; }
 .scene .day100-carousel { position:absolute; inset:0; width:100%; height:100%; aspect-ratio:auto; border:0; box-shadow:none; background:var(--surface); }
 .scene .day100-slide { position:absolute; inset:0; }
-.scene .day100-slide img { width:100%;height:100%;object-fit:cover;display:block; }
 .scene .day100-caption { font-size:clamp(12px,1.3vw,18px); padding:14px 16px 50px; }
 .scene .day100-dots { right:12px;top:12px; }
 .scene .day100-carousel .empty-message { height:100%;display:grid;place-items:center;color:var(--muted);padding:20px;text-align:center;font-family:var(--pixel);line-height:1.8; }
@@ -151,7 +150,8 @@ body { overflow-x: clip; }
 .series .art { min-height: 220px; background:
   repeating-linear-gradient(45deg, #2b2370 0 18px, #342a85 18px 36px); display: grid; place-items: center; }
 .series .art b { font-family: var(--pixel); font-size: clamp(48px, 9vw, 96px); color: var(--gold); text-shadow: 5px 5px 0 #000; }
-.series .art img { width:100%; height:100%; min-height:220px; object-fit:cover; display:block; }
+.series .art { position:relative; overflow:hidden; }
+.series .art img.fg { position:relative; z-index:1; width:100%; height:100%; min-height:220px; object-fit:contain; display:block; }
 .series .info { padding: 28px; display: flex; flex-direction: column; gap: 12px; justify-content: center; min-width: 0; }
 .series h3 { font-size: clamp(22px, 3.4vw, 30px); }
 .series p { margin: 0; color: var(--muted); }
@@ -214,9 +214,10 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
 .day100-carousel { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden; border:3px solid #000; box-shadow:6px 6px 0 #000; background:var(--surface); }
 .day100-slide { position:absolute; inset:0; opacity:0; pointer-events:none; transition:opacity .5s ease; }
 .day100-slide.active { opacity:1; pointer-events:auto; }
-.day100-slide img { width:100%; height:100%; object-fit:cover; display:block; }
-.day100-slide a { display:block; width:100%; height:100%; }
-.day100-caption { position:absolute; left:0; right:0; bottom:0; padding:12px 16px; color:#fff; font-weight:700; background:linear-gradient(transparent,rgba(0,0,0,.82)); text-shadow:0 2px 4px #000; }
+.day100-slide img.fg { position:relative; z-index:1; width:100%; height:100%; object-fit:contain; display:block; }
+.day100-slide img.bgfill, .series .art img.bgfill { position:absolute; left:-24px; top:-24px; width:calc(100% + 48px); height:calc(100% + 48px); max-width:none; min-height:0; object-fit:cover; filter:blur(22px) brightness(.65); z-index:0; pointer-events:none; }
+.day100-slide a { display:block; width:100%; height:100%; position:relative; overflow:hidden; }
+.day100-caption { z-index:2; position:absolute; left:0; right:0; bottom:0; padding:12px 16px; color:#fff; font-weight:700; background:linear-gradient(transparent,rgba(0,0,0,.82)); text-shadow:0 2px 4px #000; }
 .day100-dots { position:absolute; right:14px; top:12px; display:flex; gap:6px; z-index:3; }
 .day100-dots button { width:10px;height:10px;border-radius:50%;border:1px solid #fff;background:rgba(0,0,0,.5);padding:0;cursor:pointer; }
 .day100-dots button.active { background:var(--gold); }
@@ -329,7 +330,7 @@ function renderDay100(items) {
   root.innerHTML = items.map(function (item, i) {
     var img = esc(item.image), title = esc(item.title || 'Recent video');
     var link = safeUrl(item.link, CHANNEL + '/videos');
-    return '<div class="day100-slide' + (i === day100Index ? ' active' : '') + '"><a href="' + esc(link) + '" target="_blank" rel="noopener"><img src="' + img + '" alt="' + title + ' thumbnail" loading="lazy"><span class="day100-caption">' + title + '</span></a></div>';
+    return '<div class="day100-slide' + (i === day100Index ? ' active' : '') + '"><a href="' + esc(link) + '" target="_blank" rel="noopener"><img class="bgfill" src="' + img + '" alt="" aria-hidden="true" loading="lazy"><img class="fg" src="' + img + '" alt="' + title + ' thumbnail" loading="lazy"><span class="day100-caption">' + title + '</span></a></div>';
   }).join('') + '<div class="day100-dots">' + items.map(function (_, i) { return '<button type="button" aria-label="Show thumbnail ' + (i + 1) + '" class="' + (i === day100Index ? 'active' : '') + '" data-slide="' + i + '"></button>'; }).join('') + '</div>';
   root.querySelectorAll('[data-slide]').forEach(function (b) { b.addEventListener('click', function () { day100Index = Number(b.getAttribute('data-slide')); renderDay100(items); }); });
   clearInterval(day100Timer); if (items.length > 1) day100Timer = setInterval(function () { day100Index = (day100Index + 1) % items.length; renderDay100(items); }, 3000);
@@ -394,7 +395,7 @@ function renderSeries(c) {
   if (title) title.textContent = v.title || '';
   if (desc) desc.textContent = v.desc || '';
   if (btn) { btn.textContent = v.buttonText || ''; var url = safeHttps(v.buttonUrl || ''); if (url && v.buttonText) { btn.href = url; btn.style.display = ''; } else btn.style.display = 'none'; }
-  if (art) { var image = safeHttps(v.image || ''); var old = art.querySelector('img'); if (old) old.remove(); if (image) { var im = document.createElement('img'); im.src = image; im.alt = (v.title || 'Featured series') + ' thumbnail'; im.loading = 'lazy'; art.appendChild(im); if (fallback) fallback.style.display = 'none'; } else if (fallback) fallback.style.display = ''; }
+  if (art) { var image = safeHttps(v.image || ''); art.querySelectorAll('img').forEach(function (o) { o.remove(); }); if (image) { var bg = document.createElement('img'); bg.className = 'bgfill'; bg.src = image; bg.alt = ''; bg.setAttribute('aria-hidden', 'true'); art.appendChild(bg); var im = document.createElement('img'); im.className = 'fg'; im.src = image; im.alt = (v.title || 'Featured series') + ' thumbnail'; im.loading = 'lazy'; art.appendChild(im); if (fallback) fallback.style.display = 'none'; } else if (fallback) fallback.style.display = ''; }
 }
 function renderFooter(c) {
   var txt = document.getElementById('footerText'), a = document.getElementById('footerLink');
