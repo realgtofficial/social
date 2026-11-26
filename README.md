@@ -1,48 +1,44 @@
-# GT Official – Site + Private Admin
+# GT Official – Site + Private Admin (Cloudflare Pages)
 
-Static site with a private admin panel, built for Netlify (Netlify Functions + Netlify Blobs).
+Website with a private admin panel, hosted **free on Cloudflare Pages**.
+Backend = Pages Functions (`functions/api`), storage = Cloudflare KV.
 
 ## Features
-- **Public homepage** (`public/index.html`)
-- **Private admin** at `/admin` – password login, signed tokens (12h expiry)
-- **Day 100 thumbnail carousel** – up to 12 entries, auto-rotates every 3s (1280×720 recommended), managed from admin
-- **Let's Discuss community board** – posts (named or anonymous), likes/dislikes (one per browser visitor ID), comments, stored in Netlify Blobs
-  - Limits: post 2,000 chars, comment 500 chars, display name 30 chars
-  - Admin moderation: refresh and delete posts (with their comments and reactions)
+- Public homepage (`public/index.html`)
+- Private admin at `/admin` – password login, signed tokens (12h expiry)
+- Day 100 thumbnail carousel (up to 12 entries, 1280×720 recommended)
+- Let's Discuss board – posts (named/anonymous), like/dislike, comments
+  - Limits: post 2,000 chars, comment 500, name 30. Newest 100 posts are shown.
+  - Admin moderation under /admin → Discuss moderation (delete post with its comments/reactions)
 
 ## Structure
 ```
-public/               Site files (publish dir)
-  index.html
-  admin/index.html
-netlify/
-  functions/          config, discuss, login
-  lib/                auth, defaults, sanitize
-netlify.toml
+public/            site files (+ _headers for the admin page)
+functions/api/     backend: config, discuss, login, session
+src/lib/           auth, sanitize, defaults, shared helpers
 package.json
 ```
 
-## Setup
-1. Set the environment variable `ADMIN_PASSWORD` (min 8 characters) in Netlify:
-   *Site configuration → Environment variables* (make sure it's available to Functions), then redeploy.
-2. **Never commit the password** – use `.env.example` only as a template.
+## Deploy (all from the browser, free)
+1. Push this repo to GitHub.
+2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick the repo.
+3. Build settings: **Framework preset: None**, **Build command: (empty)**, **Build output directory: `public`**. Deploy.
+4. Create storage: **Storage & Databases → KV → Create namespace** (any name, e.g. `gtofficial`).
+5. Open your Pages project → **Settings → Bindings → Add → KV namespace**: Variable name **`KV`** (exactly), choose the namespace. Add for Production (and Preview if you want).
+6. **Settings → Variables and Secrets → Add**: name `ADMIN_PASSWORD`, type **Secret**, value = your password (min 8 chars).
+7. **Deployments → Retry deployment** (or push any commit) so the new settings apply.
+8. Site: `https://<project>.pages.dev` · Admin: `https://<project>.pages.dev/admin`
 
-## Deploy
-**Via GitHub (recommended):** push this repo, then in Netlify choose *Add new site → Import from Git*. Publish directory `public` and functions directory `netlify/functions` are already set in `netlify.toml`.
-
-**Via CLI:**
-```bash
-npm install
-npx netlify-cli login
-npx netlify-cli deploy --prod
-```
+Never commit the password to Git.
 
 ## Local development
 ```bash
 npm install
-cp .env.example .env   # then edit the password
-npx netlify-cli dev
+cp .dev.vars.example .dev.vars   # edit the password
+npm run dev
 ```
 
-## Auth notes
-Tokens are HMAC-signed using the admin password, so changing `ADMIN_PASSWORD` logs out all existing sessions.
+## Notes
+- KV is eventually consistent: a change made in one region can take up to ~60s to show elsewhere.
+- Rate limiting: not in code. In Cloudflare use *Security → WAF → Rate limiting rules* on `/api/login` if you want it.
+- Changing `ADMIN_PASSWORD` logs out all existing admin sessions.

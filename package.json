@@ -1,12 +1,13 @@
 {
   "name": "gtofficial-site",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "dependencies": {
-    "@netlify/blobs": "latest"
+  "scripts": {
+    "dev": "wrangler pages dev public --kv KV",
+    "deploy": "wrangler pages deploy public"
   },
   "devDependencies": {
-    "@netlify/functions": "latest"
+    "wrangler": "^4"
   }
 }
