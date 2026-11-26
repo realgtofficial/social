@@ -7,14 +7,15 @@ Backend = Pages Functions (`functions/api`), storage = Cloudflare KV.
 - Public homepage (`public/index.html`)
 - Private admin at `/admin` – password login, signed tokens (12h expiry)
 - Day 100 thumbnail carousel (up to 12 entries, 1280×720 recommended)
+- Downloads page at `/downloads/` – only the admin posts (title + links, up to 10 per post) from /admin → Downloads; visitors react with any emoji
 - Let's Discuss board – posts (named/anonymous), like/dislike, comments
   - Limits: post 2,000 chars, comment 500, name 30. Newest 100 posts are shown.
   - Admin moderation under /admin → Discuss moderation (delete post with its comments/reactions)
 
 ## Structure
 ```
-public/            site files (+ _headers for the admin page)
-functions/api/     backend: config, discuss, login, session
+public/            site files (+ _headers for the admin page); public/downloads/ is the Downloads page
+functions/api/     backend: config, discuss, downloads, login, session
 src/lib/           auth, sanitize, defaults, shared helpers
 package.json
 ```

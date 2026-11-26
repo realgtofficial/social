@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Downloads | GT Official</title>
+<meta name="description" content="Download links shared by GT Official. Tap a link to download and react with any emoji.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0b1e; --surface: #1a1638; --surface-2: #231e4d; --line: #2f2862; --ink: #f2f0ff; --muted: #a9a3d6;
+  --green: #5dff7a; --gold: #ffc83d; --violet: #7c5cff; --red: #ff4d5e;
+  --pixel: "Silkscreen", "Courier New", monospace;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; min-height: 100vh;
+  background-image: radial-gradient(900px 400px at 85% -5%, rgba(124,92,255,.28), transparent 60%), radial-gradient(700px 360px at 0% 30%, rgba(93,255,122,.10), transparent 60%);
+}
+a { color: inherit; }
+.wrap { width: min(860px, 100% - 32px); margin-inline: auto; }
+h1, h2, h3 { font-family: var(--pixel); margin: 0; line-height: 1.15; text-wrap: balance; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+[hidden] { display: none !important; }
+
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--pixel); font-weight: 700; font-size: 22px; }
+.logo i { width: 34px; height: 34px; background: var(--green); box-shadow: 4px 4px 0 var(--violet); display: grid; place-items: center; color: var(--bg); font-style: normal; font-size: 16px; }
+.back { text-decoration: none; padding: 8px 12px; font-weight: 600; color: var(--gold); font-size: 14px; border-radius: 6px; }
+.back:hover { background: var(--surface); }
+
+.head { padding-block: 22px 14px; }
+.head h1 { font-size: clamp(30px, 6vw, 52px); }
+.head h1::before { content: "▶ "; color: var(--green); }
+.head p { color: var(--muted); margin: 12px 0 0; max-width: 60ch; }
+
+.list { display: grid; gap: 20px; padding-block: 18px 40px; }
+.empty { padding: 28px; text-align: center; color: var(--muted); background: var(--surface); border: 3px dashed var(--line); }
+
+.dl { background: var(--surface); border: 3px solid #000; box-shadow: 6px 6px 0 var(--violet); padding: 20px; min-width: 0; }
+.dl h2 { font-size: clamp(18px, 3.2vw, 24px); overflow-wrap: anywhere; }
+.dl .when { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.links { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.links a { display: flex; gap: 10px; align-items: flex-start; text-decoration: none; background: var(--bg); border: 2px solid var(--line); padding: 10px 12px; color: var(--green); font-weight: 600; overflow-wrap: anywhere; word-break: break-word; }
+.links a:hover { border-color: var(--gold); color: var(--gold); }
+.links a::before { content: "⬇"; font-family: var(--emoji); flex: none; }
+.links small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+
+.reacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.react, .add { font: inherit; font-family: var(--emoji), var(--body); font-size: 17px; line-height: 1; background: var(--bg); color: var(--ink); border: 2px solid var(--line); border-radius: 18px; padding: 7px 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 38px; }
+.react b { font-family: var(--body); font-size: 14px; font-weight: 700; }
+.react:hover, .add:hover { border-color: var(--gold); }
+.react[aria-pressed="true"] { border-color: var(--green); background: #12301f; }
+.react:disabled, .add:disabled { opacity: .6; cursor: progress; }
+.add { color: var(--muted); font-family: var(--body); font-weight: 700; }
+.msg { color: var(--red); font-size: 13px; width: 100%; min-height: 0; }
+
+/* emoji picker */
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(5,4,16,.7); display: grid; grid-template-columns: minmax(0, 1fr); place-items: end center; padding: 0; }
+.picker { width: min(460px, 100%); min-width: 0; max-height: min(560px, 86vh); background: var(--surface); border: 3px solid #000; box-shadow: 0 -4px 0 var(--violet); display: flex; flex-direction: column; padding: 12px; gap: 10px; }
+@media (min-width: 600px) { .overlay { place-items: center; padding: 16px; } .picker { box-shadow: 8px 8px 0 var(--violet); } }
+.ptop { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ptop b { font-family: var(--pixel); font-size: 15px; }
+.pclose { font: inherit; background: var(--bg); color: var(--ink); border: 2px solid var(--line); padding: 6px 12px; cursor: pointer; }
+.tabs { flex: none; display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; min-width: 0; }
+.tabs button { flex: none; font-family: var(--emoji); font-size: 20px; line-height: 1.2; min-height: 40px; background: var(--bg); border: 2px solid var(--line); padding: 5px 9px; cursor: pointer; color: var(--ink); }
+.tabs button[aria-selected="true"] { border-color: var(--green); background: #12301f; }
+.grid { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 2px; min-height: 120px; flex: 1; align-content: start; overscroll-behavior: contain; }
+.grid button { font-family: var(--emoji); font-size: 26px; line-height: 1; background: transparent; border: 0; padding: 7px 0; cursor: pointer; border-radius: 6px; color: var(--ink); }
+.grid button:hover, .grid button:focus-visible { background: var(--surface-2); }
+.typed { flex: none; display: flex; gap: 8px; }
+.typed input { flex: 1; min-width: 0; font-family: var(--emoji), var(--body); font-size: 20px; background: var(--bg); color: var(--ink); border: 2px solid var(--line); padding: 8px 10px; border-radius: 0; }
+.typed input:focus { border-color: var(--green); outline: none; }
+.typed button { font-family: var(--pixel); font-weight: 700; background: var(--gold); color: #1a1200; border: 3px solid #000; padding: 8px 14px; cursor: pointer; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.perr { color: var(--red); font-size: 13px; min-height: 1.2em; margin: 0; }
+
+footer { border-top: 3px solid var(--line); padding-block: 22px 40px; color: var(--muted); font-size: 14px; }
+@media (max-width: 560px) { .dl { padding: 15px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav" aria-label="Main">
+    <a class="logo" href="/"><i>G</i>GT OFFICIAL</a>
+    <a class="back" href="/">← Back to website</a>
+  </nav>
+
+  <header class="head">
+    <h1>Downloads</h1>
+    <p>Tap a link to download. Like something? React with any emoji.</p>
+  </header>
+
+  <main class="list" id="list" aria-live="polite"><div class="empty">Loading downloads…</div></main>
+
+  <footer>© GT Official. Always check a link before you open it.</footer>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="picker" role="dialog" aria-modal="true" aria-label="Pick an emoji">
+    <div class="ptop"><b>Pick an emoji</b><button type="button" class="pclose" id="pclose">Close</button></div>
+    <div class="tabs" id="ptabs" role="tablist"></div>
+    <div class="grid" id="pgrid"></div>
+    <form class="typed" id="ptyped" autocomplete="off">
+      <input id="pinput" type="text" inputmode="text" enterkeyhint="done" placeholder="Type or paste emoji" aria-label="Type or paste an emoji" maxlength="40">
+      <button type="submit">ADD</button>
+    </form>
+    <p class="hint">Use your phone's emoji keyboard to add any emoji: skin tones, flags, families, everything.</p>
+    <p class="perr" id="perr" role="alert"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var list = document.getElementById('list');
+  var KEY = 'gt-discuss-visitor-v1'; // same anonymous id the community board uses
+  var QUICK = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🎉', '🙏'];
+  var posts = [], pickFor = null;
+
+  function visitor() {
+    var id = '';
+    try {
+      id = localStorage.getItem(KEY) || '';
+      if (!/^[\w-]{8,80}$/.test(id)) { id = (crypto.randomUUID ? crypto.randomUUID() : 'v' + Math.random().toString(36).slice(2) + Date.now()); localStorage.setItem(KEY, id); }
+    } catch (e) { id = 'visitor_' + Math.random().toString(36).slice(2) + Date.now(); }
+    return id;
+  }
+  var visitorId = visitor();
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function safeHref(u) { try { var x = new URL(u); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } }
+  function when(t) { try { return new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } }
+  function api(url, opts) {
+    opts = opts || {}; opts.headers = { 'content-type': 'application/json' };
+    return fetch(url, opts).then(function (r) {
+      return r.text().then(function (raw) {
+        var d; try { d = JSON.parse(raw); } catch (_) { d = { error: raw || 'HTTP ' + r.status }; }
+        if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status);
+        return d;
+      });
+    });
+  }
+
+  /* ---------- rendering ---------- */
+  function reactsHtml(p) {
+    var by = {}; (p.reactions || []).forEach(function (r) { by[r.emoji] = r; });
+    var shown = QUICK.slice();
+    (p.reactions || []).forEach(function (r) { if (shown.indexOf(r.emoji) < 0) shown.push(r.emoji); });
+    return shown.map(function (e) {
+      var r = by[e] || { count: 0, mine: false };
+      return '<button type="button" class="react" data-emoji="' + esc(e) + '" aria-pressed="' + (!!r.mine) + '" aria-label="React ' + esc(e) + (r.count ? ', ' + r.count : '') + '">' + esc(e) + (r.count ? '<b>' + r.count + '</b>' : '') + '</button>';
+    }).join('') + '<button type="button" class="add" aria-label="Add another emoji">＋ 😀</button><span class="msg" role="status"></span>';
+  }
+  function cardHtml(p) {
+    var links = (p.links || []).map(function (l) {
+      var h = safeHref(l.url); if (!h) return '';
+      var text = l.label ? esc(l.label) + '<small>' + esc(h) + '</small>' : esc(h);
+      return '<li><a href="' + esc(h) + '" target="_blank" rel="noopener noreferrer nofollow"><span>' + text + '</span></a></li>';
+    }).join('');
+    return '<article class="dl" data-id="' + esc(p.id) + '"><h2>' + esc(p.title) + '</h2><div class="when">' + esc(when(p.createdAt)) + '</div><ul class="links">' + links + '</ul><div class="reacts">' + reactsHtml(p) + '</div></article>';
+  }
+  function render() {
+    if (!posts.length) { list.innerHTML = '<div class="empty">No downloads yet. Check back soon!</div>'; return; }
+    list.innerHTML = posts.map(cardHtml).join('');
+  }
+  function load() {
+    api('/api/downloads?visitorId=' + encodeURIComponent(visitorId)).then(function (d) { posts = d.posts || []; render(); })
+      .catch(function (e) { list.innerHTML = '<div class="empty">Downloads could not load: ' + esc(e.message) + '. Please refresh.</div>'; });
+  }
+
+  /* ---------- reacting ---------- */
+  function setMsg(card, t) { var m = card && card.querySelector('.msg'); if (m) m.textContent = t || ''; }
+  function react(card, emoji, done) {
+    var id = card.getAttribute('data-id'); setMsg(card, '');
+    card.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+    api('/api/downloads?action=react', { method: 'POST', body: JSON.stringify({ postId: id, visitorId: visitorId, emoji: emoji }) })
+      .then(function (d) {
+        var p = posts.filter(function (x) { return x.id === id; })[0]; if (p) p.reactions = d.reactions;
+        card.querySelector('.reacts').innerHTML = reactsHtml(p || { reactions: d.reactions });
+        if (done) done(true);
+      })
+      .catch(function (e) {
+        card.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+        setMsg(card, e.message); if (done) done(false, e.message);
+      });
+  }
+  list.addEventListener('click', function (e) {
+    var card = e.target.closest('.dl'); if (!card) return;
+    var add = e.target.closest('.add');
+    if (add) { openPicker(card); return; }
+    var b = e.target.closest('.react'); if (b) react(card, b.getAttribute('data-emoji'));
+  });
+
+  /* ---------- emoji picker ---------- */
+  // Built from Unicode ranges so every emoji the phone can draw is there. Anything else (skin tones, flags, families)
+  // can be typed or pasted with the phone's own emoji keyboard in the box below.
+  var GROUPS = [
+    { icon: '😀', name: 'Faces', ranges: [[0x1F600, 0x1F64F], [0x1F910, 0x1F92F], [0x1F970, 0x1F97A], [0x1FAE0, 0x1FAE8]], extra: ['☺️', '☹️', '☠️'] },
+    { icon: '👍', name: 'People', ranges: [[0x1F440, 0x1F450], [0x1F466, 0x1F487], [0x1F90C, 0x1F90F], [0x1F930, 0x1F93F], [0x1F9B4, 0x1F9BF], [0x1F9D0, 0x1F9DF], [0x1FAF0, 0x1FAF8], [0x1F4AA, 0x1F4AA]], extra: ['✌️', '☝️', '✍️', '✋', '✊'] },
+    { icon: '🐶', name: 'Animals & nature', ranges: [[0x1F400, 0x1F43E], [0x1F980, 0x1F9AE], [0x1F331, 0x1F344], [0x1F337, 0x1F33F], [0x1F300, 0x1F320]], extra: ['☀️', '☁️', '❄️', '☃️', '⛄', '⚡', '🕊️'] },
+    { icon: '🍔', name: 'Food', ranges: [[0x1F345, 0x1F37C], [0x1F950, 0x1F96B], [0x1F9C0, 0x1F9CB], [0x1FAD0, 0x1FADB]], extra: ['☕', '🍽️'] },
+    { icon: '⚽', name: 'Activities & travel', ranges: [[0x1F380, 0x1F3CE], [0x1F3D4, 0x1F3DF], [0x1F680, 0x1F6C5], [0x1F3A0, 0x1F3C4], [0x1F93A, 0x1F94F]], extra: ['⚽', '⚾', '⛳', '✈️', '⚔️', '🏎️', '🕹️'] },
+    { icon: '💡', name: 'Objects', ranges: [[0x1F4A1, 0x1F4A9], [0x1F4B0, 0x1F4FC], [0x1F500, 0x1F53D], [0x1F5A4, 0x1F5A4], [0x1F9E0, 0x1F9FF], [0x1FA70, 0x1FA7C]], extra: ['⌚', '⌨️', '⚙️', '🖥️', '🖱️', '☎️', '✏️', '✂️'] },
+    { icon: '❤️', name: 'Hearts & symbols', ranges: [[0x1F493, 0x1F49F], [0x1F90D, 0x1F90E], [0x1F9E1, 0x1F9E1], [0x1F7E0, 0x1F7EB], [0x1F51F, 0x1F51F], [0x1F6D1, 0x1F6D2]], extra: ['❤️', '❣️', '❤️‍🔥', '✅', '❌', '⭐', '✨', '❓', '❗', '✔️', '➕', '➖', '♻️', '⚠️', '♥️', '♦️', '♠️', '♣️'] }
+  ];
+  var overlay = document.getElementById('overlay'), pgrid = document.getElementById('pgrid'), ptabs = document.getElementById('ptabs'), pinput = document.getElementById('pinput'), perr = document.getElementById('perr');
+  var EP; try { EP = new RegExp('^\\p{Emoji_Presentation}$', 'u'); } catch (e) { EP = null; }
+  var cache = {};
+  function groupEmojis(i) {
+    if (cache[i]) return cache[i];
+    var g = GROUPS[i], out = [], seen = {};
+    g.ranges.forEach(function (r) {
+      for (var c = r[0]; c <= r[1]; c++) {
+        var ch = String.fromCodePoint(c);
+        if ((!EP || EP.test(ch)) && !seen[ch]) { seen[ch] = 1; out.push(ch); }
+      }
+    });
+    (g.extra || []).forEach(function (ch) { if (!seen[ch]) { seen[ch] = 1; out.push(ch); } });
+    return (cache[i] = out);
+  }
+  function showGroup(i) {
+    [].forEach.call(ptabs.children, function (b, k) { b.setAttribute('aria-selected', String(k === i)); });
+    pgrid.innerHTML = groupEmojis(i).map(function (ch) { return '<button type="button" data-e="' + esc(ch) + '">' + esc(ch) + '</button>'; }).join('');
+    pgrid.scrollTop = 0;
+  }
+  ptabs.innerHTML = GROUPS.map(function (g, i) { return '<button type="button" role="tab" data-g="' + i + '" title="' + esc(g.name) + '" aria-label="' + esc(g.name) + '">' + esc(g.icon) + '</button>'; }).join('');
+  ptabs.addEventListener('click', function (e) { var b = e.target.closest('[data-g]'); if (b) showGroup(+b.getAttribute('data-g')); });
+
+  function openPicker(card) {
+    pickFor = card; perr.textContent = ''; pinput.value = '';
+    overlay.hidden = false; document.body.style.overflow = 'hidden';
+    showGroup(0);
+  }
+  function closePicker() { overlay.hidden = true; document.body.style.overflow = ''; pickFor = null; }
+  function choose(emoji) {
+    if (!pickFor) return;
+    var card = pickFor; perr.textContent = '';
+    react(card, emoji, function (ok, msg) { if (ok) closePicker(); else perr.textContent = msg || 'Could not add that emoji.'; });
+  }
+  pgrid.addEventListener('click', function (e) { var b = e.target.closest('[data-e]'); if (b) choose(b.getAttribute('data-e')); });
+  document.getElementById('ptyped').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = pinput.value.trim();
+    if (!v) { perr.textContent = 'Type or paste one emoji first.'; return; }
+    choose(v);
+  });
+  document.getElementById('pclose').addEventListener('click', closePicker);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closePicker(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !overlay.hidden) closePicker(); });
+
+  load();
+})();
+</script>
+</body>
+</html>

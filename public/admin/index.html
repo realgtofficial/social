@@ -64,6 +64,7 @@ input::placeholder { color: #6f69a3; }
 .state.dirty::before { background: var(--gold); }
 .savebtns { display: flex; gap: 10px; flex-wrap: wrap; }
 .admin-red{color:var(--red)}.admin-post-box{display:grid;gap:8px;margin:0 0 18px;padding:14px;border:2px solid var(--red);background:var(--surface)}.admin-post-box textarea{width:100%}.admin-tag{background:var(--red);color:#1a0003;font-size:11px;font-weight:800;padding:2px 6px;margin-left:6px}.mod-reply{display:grid;gap:6px;margin-top:10px}.mod-reply textarea{width:100%}.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
+.dl-form{display:grid;gap:12px}.dl-form textarea{width:100%;background:var(--bg);border:2px solid var(--line);padding:10px 12px;border-radius:0;font:inherit;color:inherit;resize:vertical;min-height:110px}.dl-form textarea:focus{border-color:var(--green);outline:none}.dl-links{margin:8px 0;padding-left:18px;overflow-wrap:anywhere;color:var(--muted);font-size:13px}.dl-links a{color:var(--green)}
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
 .tab { font-family: var(--pixel); font-size: 14px; padding: 9px 14px; background: var(--surface); border: 2px solid var(--line); cursor: pointer; }
 .tab[aria-selected="true"] { background: var(--green); color: #052b10; border-color: #000; }
@@ -143,6 +144,7 @@ input::placeholder { color: #6f69a3; }
     <button class="tab" role="tab" id="t-videos" data-tab="videos" aria-selected="false">Latest videos<span id="n-videos"></span></button>
     <button class="tab" role="tab" id="t-day100" data-tab="day100">Day 100 thumbnails<span id="n-day100"></span></button>
     <button class="tab" role="tab" id="t-community" data-tab="community">Community & Footer<span id="n-community"></span></button>
+    <button class="tab" role="tab" id="t-downloads" data-tab="downloads" aria-selected="false">Downloads</button>
     <button class="tab" role="tab" id="t-moderation" data-tab="moderation">Discuss moderation</button>
   </div>
 
@@ -153,6 +155,7 @@ input::placeholder { color: #6f69a3; }
   <section class="panel" id="p-videos" role="tabpanel" aria-labelledby="t-videos" hidden></section>
   <section class="panel" id="p-day100" role="tabpanel" aria-labelledby="t-day100" hidden></section>
   <section class="panel" id="p-community" role="tabpanel" aria-labelledby="t-community" hidden></section>
+  <section class="panel" id="p-downloads" role="tabpanel" aria-labelledby="t-downloads" hidden></section>
   <section class="panel" id="p-moderation" role="tabpanel" aria-labelledby="t-moderation" hidden><h2>Let's Discuss moderation</h2><p class="lead">Review community posts. Delete a post to remove it along with its comments and reactions.</p><div class="admin-post-box"><label class="fl" for="adminPostText">Post as <b class="admin-red">Admin</b> <small>(shows in red on the public board)</small></label><textarea id="adminPostText" maxlength="2000" rows="3" placeholder="Write an announcement or start a thread as Admin (max 2000 characters)"></textarea><div class="rowbtns"><button class="btn" type="button" id="adminPostBtn">Post as Admin</button><span id="adminPostStatus" class="lead"></span></div></div><div class="rowbtns"><button class="btn ghost" type="button" id="moderationRefresh">Refresh posts</button></div><div id="moderationStatus" class="lead">Choose Refresh posts to load submissions.</div><div id="moderationList" class="moderation-list"></div></section>
 
   <p class="help">Changes go live for every visitor as soon as you press Save. Tip: Ctrl+S (or Cmd+S) also saves.</p>
@@ -237,10 +240,100 @@ input::placeholder { color: #6f69a3; }
   }
   function switchTab(name) {
     tab = name;
-    ['subs', 'games', 'series', 'playlists', 'videos', 'day100', 'community', 'moderation'].forEach(function (t) {
+    ['subs', 'games', 'series', 'playlists', 'videos', 'day100', 'community', 'downloads', 'moderation'].forEach(function (t) {
       $('t-' + t).setAttribute('aria-selected', String(t === name)); $('p-' + t).hidden = t !== name;
     });
     if (name === 'moderation') loadModeration();
+    if (name === 'downloads') renderDownloads();
+  }
+
+  /* ---------- panel: downloads (saves instantly, separate from the Save changes button) ---------- */
+  var dlEditing = null; // id of the post being edited, or null when adding a new one
+  function parseLinkLines(text) {
+    var out = [], bad = null;
+    String(text || '').split(/\r?\n/).forEach(function (line, i) {
+      line = line.trim(); if (!line) return;
+      var label = '', url = line;
+      if (!/^https?:\/\//i.test(line) && line.indexOf('|') > -1) { var k = line.indexOf('|'); label = line.slice(0, k).trim(); url = line.slice(k + 1).trim(); }
+      if (!/^https:\/\/\S+$/i.test(url) && !bad) bad = 'Line ' + (i + 1) + ': the link must start with https:// and have no spaces.';
+      out.push({ label: label, url: url });
+    });
+    return { links: out, error: bad };
+  }
+  function linesFromLinks(links) { return (links || []).map(function (l) { return (l.label ? l.label + ' | ' : '') + l.url; }).join('\n'); }
+  function renderDownloads() {
+    var box = $('p-downloads'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Downloads' }));
+    box.appendChild(el('p', { class: 'lead', text: 'Posts here appear on the Downloads page of your website (gtofficial.pages.dev/downloads). Visitors can open the links and react with any emoji. Only you can post. These save instantly, you do not need the Save changes button.' }));
+
+    var title = el('input', { type: 'text', maxlength: '120', placeholder: 'e.g. Skyblock texture pack 1.21', autocomplete: 'off' });
+    var links = el('textarea', { rows: '4', placeholder: 'One link per line. Optional name before a bar:\nMediaFire | https://www.mediafire.com/file/…\nhttps://drive.google.com/…' });
+    var status = el('span', { class: 'lead' });
+    var go = el('button', { type: 'button', class: 'btn', text: 'Post download' });
+    var cancel = el('button', { type: 'button', class: 'btn ghost', text: 'Cancel edit' }); cancel.hidden = true;
+    var form = el('div', { class: 'admin-post-box dl-form' }, [
+      el('label', { class: 'fl', text: 'New download post' }),
+      field('Title', title, null, null),
+      field('Links (up to 10, must start with https://)', links, 'Optional: type a name, then | then the link. The link is shown under the title.', null),
+      el('div', { class: 'rowbtns' }, [go, cancel, status])
+    ]);
+    box.appendChild(form);
+    var listBox = el('div', { class: 'moderation-list' }), info = el('div', { class: 'lead', text: 'Loading downloads…' });
+    box.appendChild(info); box.appendChild(listBox);
+
+    function resetForm() { dlEditing = null; title.value = ''; links.value = ''; go.textContent = 'Post download'; cancel.hidden = true; form.firstChild.textContent = 'New download post'; }
+    cancel.addEventListener('click', function () { resetForm(); status.textContent = ''; });
+    go.addEventListener('click', function () {
+      var t = title.value.trim(); if (!t) { status.textContent = 'Write a title first.'; return; }
+      var pl = parseLinkLines(links.value);
+      if (!pl.links.length) { status.textContent = 'Add at least one link.'; return; }
+      if (pl.error) { status.textContent = pl.error; return; }
+      if (pl.links.length > 10) { status.textContent = 'Up to 10 links per post.'; return; }
+      var editing = dlEditing; go.disabled = true; status.textContent = editing ? 'Saving…' : 'Posting…';
+      api('/api/downloads?action=' + (editing ? 'update' : 'create'), 'POST', { postId: editing || undefined, title: t, links: pl.links }).then(function (out) {
+        go.disabled = false;
+        if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+        if (!out.ok) { status.textContent = out.data.error || 'Could not save.'; return; }
+        resetForm(); status.textContent = editing ? 'Saved.' : 'Posted. It is live on the Downloads page.'; toast(editing ? 'Download updated.' : 'Download posted.'); loadList();
+      }).catch(function () { go.disabled = false; status.textContent = 'Could not reach server.'; });
+    });
+    dlEditing = null;
+
+    function loadList() {
+      info.textContent = 'Loading downloads…'; listBox.textContent = '';
+      api('/api/downloads').then(function (res) {
+        if (!res.ok) { info.textContent = res.data.error || 'Could not load downloads.'; return; }
+        var posts = res.data.posts || [];
+        info.textContent = posts.length ? posts.length + ' download post(s).' : 'No downloads yet. Add your first one above.';
+        posts.forEach(function (p) {
+          var total = (p.reactions || []).reduce(function (n, r) { return n + r.count; }, 0);
+          var ul = el('ul', { class: 'dl-links' }, (p.links || []).map(function (l) { return el('li', {}, [l.label ? l.label + ': ' : '', el('a', { href: l.url, target: '_blank', rel: 'noopener noreferrer', text: l.url })]); }));
+          var edit = el('button', { type: 'button', class: 'mini', text: 'Edit' });
+          edit.addEventListener('click', function () {
+            dlEditing = p.id; title.value = p.title; links.value = linesFromLinks(p.links);
+            go.textContent = 'Save changes'; cancel.hidden = false; form.firstChild.textContent = 'Editing: ' + p.title; status.textContent = '';
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' }); title.focus();
+          });
+          var del = el('button', { type: 'button', class: 'mini danger', text: 'Delete' });
+          del.addEventListener('click', function () {
+            if (!confirm('Delete this download post and its reactions? This cannot be undone.')) return;
+            del.disabled = true;
+            api('/api/downloads?action=delete', 'POST', { postId: p.id }).then(function (out) {
+              if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+              if (!out.ok) { toast(out.data.error || 'Could not delete.', true); del.disabled = false; return; }
+              if (dlEditing === p.id) resetForm(); toast('Download deleted.'); loadList();
+            }).catch(function () { toast('Could not reach server.', true); del.disabled = false; });
+          });
+          listBox.appendChild(el('article', { class: 'moderation-post' }, [
+            el('header', {}, [el('b', { text: p.title }), el('span', { class: 'moderation-meta', text: new Date(p.createdAt).toLocaleString() })]),
+            ul,
+            el('div', { class: 'moderation-meta', text: 'Reactions ' + total + (p.reactions && p.reactions.length ? ' (' + p.reactions.map(function (r) { return r.emoji + ' ' + r.count; }).join('  ') + ')' : '') }),
+            el('div', { class: 'rowbtns', style: 'margin-top:10px' }, [edit, del])
+          ]));
+        });
+      }).catch(function () { info.textContent = 'Could not load downloads. Check connection and try again.'; });
+    }
+    loadList();
   }
 
   function loadModeration() {
