@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>GT Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0b1e; --surface: #171433; --surface-2: #1f1b42; --line: #2f2862;
+  --ink: #f2f0ff; --muted: #a9a3d6; --green: #5dff7a; --gold: #ffc83d; --red: #ff5d6c; --violet: #7c5cff;
+  --pixel: "Silkscreen", "Courier New", monospace; --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { height: 100%; }
+body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--pixel); margin: 0; line-height: 1.15; text-wrap: balance; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 980px; margin-inline: auto; }
+
+/* shared controls */
+.btn { font-family: var(--pixel); font-weight: 700; font-size: 14px; padding: 11px 16px; border: 3px solid #000; box-shadow: 4px 4px 0 #000; cursor: pointer; background: var(--gold); color: #1a1200; text-decoration: none; display: inline-block; }
+.btn:hover:not(:disabled) { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.green { background: var(--green); color: #052b10; }
+.btn.ghost { background: var(--surface-2); color: var(--ink); }
+.mini { font-size: 13px; font-weight: 600; padding: 5px 10px; border: 2px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.mini:hover:not(:disabled) { border-color: var(--green); }
+.mini:disabled { opacity: .35; cursor: not-allowed; }
+.mini.danger.armed { background: var(--red); border-color: #000; color: #1a0003; }
+input[type=text], input[type=number], input[type=password], input[type=search], select { width: 100%; background: var(--bg); border: 2px solid var(--line); padding: 10px 12px; border-radius: 0; min-width: 0; }
+input:focus, select:focus { border-color: var(--green); outline: none; }
+input::placeholder { color: #6f69a3; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fl { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.f small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+
+/* login */
+.login { min-height: 100vh; display: grid; place-items: center; padding-block: 32px; }
+.login-card { width: min(420px, 100%); background: var(--surface); border: 3px solid #000; box-shadow: 8px 8px 0 var(--violet); padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--pixel); font-weight: 700; font-size: 20px; }
+.brand i { width: 32px; height: 32px; background: var(--green); box-shadow: 4px 4px 0 var(--violet); display: grid; place-items: center; color: var(--bg); font-style: normal; }
+.login h1 { font-size: 26px; }
+.pwrow { display: flex; gap: 8px; }
+.err { color: var(--red); margin: 0; min-height: 1.4em; font-weight: 500; }
+.note { color: var(--muted); font-size: 13px; margin: 0; }
+.note a { color: var(--gold); }
+
+/* app */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 18px 12px; }
+.top .links { display: flex; gap: 10px; align-items: center; }
+.top a.view { color: var(--gold); font-weight: 600; }
+.savebar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--surface); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px 14px; margin-bottom: 18px; }
+.state { font-family: var(--pixel); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.state::before { content: ""; width: 12px; height: 12px; background: var(--green); }
+.state.dirty { color: var(--gold); }
+.state.dirty::before { background: var(--gold); }
+.savebtns { display: flex; gap: 10px; flex-wrap: wrap; }
+.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+.tab { font-family: var(--pixel); font-size: 14px; padding: 9px 14px; background: var(--surface); border: 2px solid var(--line); cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--green); color: #052b10; border-color: #000; }
+.tab span { opacity: .75; margin-left: 6px; }
+.panel h2 { font-size: 22px; margin-bottom: 6px; }
+.panel > p.lead { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
+.card { background: var(--surface); border: 3px solid var(--line); padding: 18px; }
+.preview { display: block; margin-top: 10px; color: var(--green); font-weight: 600; }
+.preview.bad { color: var(--red); }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.toolbar .grow { flex: 1 1 220px; min-width: 0; }
+.count { color: var(--muted); font-size: 13px; }
+.rows { display: grid; gap: 12px; }
+.row { background: var(--surface); border: 3px solid var(--line); }
+.rowhead { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface-2); border-bottom: 2px solid var(--line); }
+.rown { font-family: var(--pixel); color: var(--green); font-size: 13px; white-space: nowrap; }
+.rowtitle { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.rowbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 14px; }
+.fields .wide { grid-column: 1 / -1; }
+.vid { display: flex; gap: 12px; align-items: flex-start; }
+.thumbbox { flex: none; width: 128px; aspect-ratio: 16 / 9; background: var(--bg); border: 2px solid var(--line); display: grid; place-items: center; color: var(--muted); font-size: 12px; overflow: hidden; }
+.thumbbox img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.empty { padding: 28px; text-align: center; color: var(--muted); border: 3px dashed var(--line); }
+.help { margin-top: 26px; color: var(--muted); font-size: 13px; }
+
+#toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  background: var(--green); color: #052b10; font-weight: 600; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 10px 16px; max-width: min(520px, calc(100vw - 32px)); z-index: 30; }
+#toast.bad { background: var(--red); color: #1a0003; }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 560px) {
+  .vid { flex-direction: column; }
+  .thumbbox { width: 100%; max-width: 240px; }
+  .rowhead { flex-wrap: wrap; }
+  .rowtitle { flex-basis: 100%; order: 3; }
+  .savebtns .btn { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<main class="login" id="loginView" hidden>
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="brand"><i>G</i>GT ADMIN</div>
+    <h1>Admin login</h1>
+    <label class="f"><span class="fl">Password</span>
+      <span class="pwrow"><input type="password" id="pw" name="password" autocomplete="current-password" required><button type="button" class="mini" id="showPw" aria-pressed="false">Show</button></span>
+    </label>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn green" type="submit" id="loginBtn">LOG IN</button>
+    <p class="note">Only the channel owner can sign in here. <a href="/">Back to the website</a></p>
+  </form>
+</main>
+
+<p id="boot" class="note" style="padding-top:40px;text-align:center">Checking login…</p>
+
+<div class="wrap" id="appView" hidden>
+  <header class="top">
+    <div class="brand"><i>G</i>GT ADMIN</div>
+    <div class="links"><a class="view" href="/" target="_blank" rel="noopener">View website ↗</a><button type="button" class="mini danger" id="logout">Log out</button></div>
+  </header>
+
+  <div class="savebar">
+    <div class="state" id="state">All changes saved</div>
+    <div class="savebtns">
+      <button type="button" class="btn ghost" id="discard" disabled>Discard changes</button>
+      <button type="button" class="btn green" id="save" disabled>Save changes</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="What to edit">
+    <button class="tab" role="tab" id="t-subs" data-tab="subs" aria-selected="true">Subscribers</button>
+    <button class="tab" role="tab" id="t-games" data-tab="games" aria-selected="false">Pick your game<span id="n-games"></span></button>
+    <button class="tab" role="tab" id="t-playlists" data-tab="playlists" aria-selected="false">Playlists<span id="n-playlists"></span></button>
+    <button class="tab" role="tab" id="t-videos" data-tab="videos" aria-selected="false">Latest videos<span id="n-videos"></span></button>
+    <button class="tab" role="tab" id="t-day100" data-tab="day100">Day 100 thumbnails<span id="n-day100"></span></button>
+    <button class="tab" role="tab" id="t-series" data-tab="series">Featured series</button>
+    <button class="tab" role="tab" id="t-community" data-tab="community">Community & Footer<span id="n-community"></span></button>
+    <button class="tab" role="tab" id="t-moderation" data-tab="moderation">Discuss moderation</button>
+  </div>
+
+  <section class="panel" id="p-subs" role="tabpanel" aria-labelledby="t-subs"></section>
+  <section class="panel" id="p-games" role="tabpanel" aria-labelledby="t-games" hidden></section>
+  <section class="panel" id="p-playlists" role="tabpanel" aria-labelledby="t-playlists" hidden></section>
+  <section class="panel" id="p-videos" role="tabpanel" aria-labelledby="t-videos" hidden></section>
+  <section class="panel" id="p-day100" role="tabpanel" aria-labelledby="t-day100" hidden></section>
+  <section class="panel" id="p-series" role="tabpanel" aria-labelledby="t-series" hidden></section>
+  <section class="panel" id="p-community" role="tabpanel" aria-labelledby="t-community" hidden></section>
+  <section class="panel" id="p-moderation" role="tabpanel" aria-labelledby="t-moderation" hidden><h2>Let's Discuss moderation</h2><p class="lead">Review community posts. Delete a post to remove it along with its comments and reactions.</p><div class="rowbtns"><button class="btn ghost" type="button" id="moderationRefresh">Refresh posts</button></div><div id="moderationStatus" class="lead">Choose Refresh posts to load submissions.</div><div id="moderationList" class="moderation-list"></div></section>
+
+  <p class="help">Changes go live for every visitor as soon as you press Save. Tip: Ctrl+S (or Cmd+S) also saves.</p>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'gt_admin_token';
+  var token = null, cfg = null, saved = '', dirty = false, subsBad = false, tab = 'subs';
+  var toastTimer = null;
+
+  /* ---------- small helpers ---------- */
+  function keep(k, v) { try { if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} }
+  function recall(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    for (var k in (props || {})) {
+      var v = props[k];
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
+    }
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function toast(msg, bad) {
+    var t = $('toast'); t.textContent = msg; t.className = (bad ? 'bad ' : '') + 'show';
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = bad ? 'bad' : ''; }, bad ? 6000 : 3500);
+  }
+  function api(path, method, body) {
+    var h = { 'content-type': 'application/json' };
+    if (token) h.authorization = 'Bearer ' + token;
+    return fetch(path, { method: method || 'GET', headers: h, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { status: r.status, ok: r.ok, data: d }; }); });
+  }
+  function fmtSubs(n) { if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'; return n < 1000 ? String(n) : (n / 1000).toFixed(1) + 'K'; }
+  function parseCount(t) {
+    t = String(t).trim().toLowerCase().replace(/[, ]/g, '');
+    var m = /^(\d+(?:\.\d+)?)([km]?)$/.exec(t); if (!m) return null;
+    var n = Math.round(parseFloat(m[1]) * (m[2] === 'k' ? 1e3 : m[2] === 'm' ? 1e6 : 1));
+    return n <= 2e9 ? n : null;
+  }
+  function isCount(v) { return String(v).trim() !== '' && Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 1e7; }
+  function isYt(u) {
+    try { var x = new URL(u); return x.protocol === 'https:' && /^(www\.|m\.)?youtube\.com$|^youtu\.be$/.test(x.hostname); } catch (e) { return false; }
+  }
+  function parseYT(t) {
+    t = String(t).trim();
+    if (/^[\w-]{11}$/.test(t)) return { id: t, list: null };
+    var u; try { u = new URL(t); } catch (e) { return null; }
+    var host = u.hostname.replace(/^(www|m)\./, ''), id = '';
+    if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+    else if (host === 'youtube.com') {
+      id = u.searchParams.get('v') || '';
+      var m = /^\/(?:shorts|embed|live)\/([\w-]{11})/.exec(u.pathname); if (m) id = m[1];
+    } else return null;
+    return /^[\w-]{11}$/.test(id) ? { id: id, list: u.searchParams.get('list') || '' } : null;
+  }
+
+  /* ---------- state ---------- */
+  function normalize(d) {
+    d = d || {};
+    return {
+      subs: typeof d.subs === 'number' ? d.subs : 0,
+      games: Array.isArray(d.games) ? d.games : [],
+      playlists: Array.isArray(d.playlists) ? d.playlists : [],
+      videos: Array.isArray(d.videos) ? d.videos : [],
+      day100Thumbnails: Array.isArray(d.day100Thumbnails) ? d.day100Thumbnails : [],
+      series: Object.assign({ title: '100 Days in Pixelmon and Cobblemon', desc: "Catch, train and survive in Minecraft's Pokémon-style mods, one day at a time. Edit this card to point to your current series.", buttonText: 'VIEW PLAYLISTS', buttonUrl: 'https://www.youtube.com/@gtofficial/playlists', image: '' }, d.series || {}),
+      communityCards: Array.isArray(d.communityCards) ? d.communityCards : [{ title: 'YouTube', desc: 'Subscribe and turn on the bell for daily uploads.', buttonText: 'SUBSCRIBE', buttonUrl: 'https://www.youtube.com/@gtofficial?sub_confirmation=1', detail: '2.3K' }, { title: 'Discord', desc: 'Chat with other fans and find players. Add your invite link here.', buttonText: 'ADD INVITE LINK', buttonUrl: '', detail: '' }, { title: 'Play with us', desc: 'Server address (replace with yours):', buttonText: '', buttonUrl: '', detail: 'play.example.com' }], footerText: typeof d.footerText === 'string' ? d.footerText : '© 2026 GT Official. Fan content, not affiliated with Mojang, Microsoft, Roblox or Supercell.', footerLinkText: typeof d.footerLinkText === 'string' ? d.footerLinkText : 'youtube.com/@gtofficial', footerLinkUrl: typeof d.footerLinkUrl === 'string' ? d.footerLinkUrl : 'https://www.youtube.com/@gtofficial'
+    };
+  }
+  function touch() {
+    dirty = JSON.stringify(cfg) !== saved;
+    var s = $('state'); s.textContent = dirty ? 'Unsaved changes' : 'All changes saved'; s.className = 'state' + (dirty ? ' dirty' : '');
+    $('save').disabled = !dirty; $('discard').disabled = !dirty;
+    $('n-games').textContent = cfg.games.length; $('n-playlists').textContent = cfg.playlists.length; $('n-videos').textContent = cfg.videos.length; $('n-day100').textContent = cfg.day100Thumbnails.length; $('n-community').textContent = cfg.communityCards.length;
+  }
+  function switchTab(name) {
+    tab = name;
+    ['subs', 'games', 'playlists', 'videos', 'day100', 'series', 'community', 'moderation'].forEach(function (t) {
+      $('t-' + t).setAttribute('aria-selected', String(t === name)); $('p-' + t).hidden = t !== name;
+    });
+    if (name === 'moderation') loadModeration();
+  }
+
+  function loadModeration() {
+    var status = $('moderationStatus'), list = $('moderationList');
+    status.textContent = 'Loading community posts…'; list.innerHTML = '';
+    api('/api/discuss?action=moderate').then(function (res) {
+      if (res.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+      if (!res.ok) { status.textContent = res.data.error || 'Could not load community posts.'; return; }
+      var posts = res.data.posts || []; status.textContent = posts.length ? posts.length + ' post(s) loaded.' : 'No community posts yet.';
+      posts.forEach(function (p) {
+        var card = el('article', { class: 'moderation-post' });
+        var author = p.anonymous ? 'Anonymous' : (p.name || 'Unnamed');
+        card.appendChild(el('header', {}, [el('b', { text: author }), el('span', { class: 'moderation-meta', text: new Date(p.createdAt || Date.now()).toLocaleString() })]));
+        card.appendChild(el('p', { text: p.text || '' }));
+        card.appendChild(el('div', { class: 'moderation-meta', text: '👍 ' + (p.likes || 0) + ' · 👎 ' + (p.dislikes || 0) + ' · Comments ' + (p.commentCount || 0) }));
+        var del = el('button', { type: 'button', class: 'mini danger', text: 'Delete post' });
+        del.addEventListener('click', function () {
+          if (!confirm('Delete this post and all its comments and reactions? This cannot be undone.')) return;
+          del.disabled = true; del.textContent = 'Deleting…';
+          api('/api/discuss?action=delete', 'POST', { postId: p.id }).then(function (out) {
+            if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }
+            if (!out.ok) { toast(out.data.error || 'Could not delete post.', true); del.disabled = false; del.textContent = 'Delete post'; return; }
+            toast('Post deleted.'); loadModeration();
+          }).catch(function () { toast('Could not reach server to delete post.', true); del.disabled = false; del.textContent = 'Delete post'; });
+        });
+        card.appendChild(del); list.appendChild(card);
+      });
+    }).catch(function () { status.textContent = 'Could not load community posts. Check connection and try again.'; });
+  }
+  $('moderationRefresh').addEventListener('click', loadModeration);
+
+  /* ---------- building blocks ---------- */
+  function textIn(value, onInput, extra) {
+    var props = { type: 'text', autocomplete: 'off', value: value == null ? '' : String(value) };
+    for (var k in (extra || {})) props[k] = extra[k];
+    var i = el('input', props); i.addEventListener('input', function () { onInput(i.value); }); return i;
+  }
+  function numIn(value, onInput) {
+    var i = el('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', value: String(value) });
+    i.addEventListener('input', function () { onInput(i.value); }); return i;
+  }
+  function field(label, input, hint, cls) { return el('label', { class: 'f' + (cls ? ' ' + cls : '') }, [el('span', { class: 'fl', text: label }), input, hint ? el('small', { text: hint }) : null]); }
+  function move(list, i, d) { var j = i + d; if (j < 0 || j >= list.length) return; var t = list[i]; list[i] = list[j]; list[j] = t; }
+  function rowShell(kind, i, list, title, body, rerender) {
+    var del = el('button', { type: 'button', class: 'mini danger', text: 'Delete' });
+    var armed = false, timer = null;
+    del.addEventListener('click', function () {
+      if (!armed) {
+        armed = true; del.textContent = 'Sure? Click again'; del.classList.add('armed');
+        timer = setTimeout(function () { armed = false; del.textContent = 'Delete'; del.classList.remove('armed'); }, 3000);
+        return;
+      }
+      clearTimeout(timer); list.splice(i, 1); touch(); rerender();
+    });
+    var up = el('button', { type: 'button', class: 'mini', text: '↑', 'aria-label': 'Move up' });
+    var dn = el('button', { type: 'button', class: 'mini', text: '↓', 'aria-label': 'Move down' });
+    up.disabled = i === 0; dn.disabled = i === list.length - 1;
+    up.addEventListener('click', function () { move(list, i, -1); touch(); rerender(); });
+    dn.addEventListener('click', function () { move(list, i, 1); touch(); rerender(); });
+    var t = el('span', { class: 'rowtitle', text: title || '(new)' });
+    var node = el('article', { class: 'row' }, [
+      el('header', { class: 'rowhead' }, [el('b', { class: 'rown', text: kind + ' ' + (i + 1) }), t, el('span', { class: 'rowbtns' }, [up, dn, del])]),
+      el('div', { class: 'fields' }, body)
+    ]);
+    node._title = t; return node;
+  }
+
+  /* ---------- panel: subscribers ---------- */
+  function renderSubs() {
+    var box = $('p-subs'); box.textContent = '';
+    var prev = el('output', { class: 'preview' });
+    var inp = textIn(cfg.subs, function (v) {
+      var n = parseCount(v);
+      if (n === null) { subsBad = true; prev.className = 'preview bad'; prev.textContent = 'Type a number like 10.2K, 1.5M or 10200.'; }
+      else { subsBad = false; cfg.subs = n; prev.className = 'preview'; prev.textContent = 'Shows on the website as ' + fmtSubs(n) + ' (' + n.toLocaleString('en-IN') + ' subscribers).'; }
+      touch();
+    }, { inputmode: 'text', placeholder: '10.2K' });
+    prev.textContent = 'Shows on the website as ' + fmtSubs(cfg.subs) + ' (' + cfg.subs.toLocaleString('en-IN') + ' subscribers).';
+    subsBad = false;
+    box.appendChild(el('h2', { text: 'Subscribers' }));
+    box.appendChild(el('p', { class: 'lead', text: 'This number is shown inside the Subscribe buttons. The counter on the website counts up from 0 to this number.' }));
+    box.appendChild(el('div', { class: 'card' }, [field('Subscriber count', inp, 'You can type 10.2K, 1.5M or the full number.'), prev]));
+  }
+
+  /* ---------- panel: pick your game ---------- */
+  function renderGames() {
+    var box = $('p-games'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Pick your game' }));
+    box.appendChild(el('p', { class: 'lead', text: 'These cards sit at the top of the website. Change the name, the number of videos and where the card opens. Four cards look best.' }));
+    var add = el('button', { type: 'button', class: 'btn', text: '+ ADD CARD' });
+    add.disabled = cfg.games.length >= 8;
+    add.addEventListener('click', function () {
+      cfg.games.push({ name: '', count: 0, desc: 'Our biggest playlists. Watch the full series on YouTube.', url: '' }); touch(); renderGames();
+      var r = $('p-games').querySelectorAll('.row'); if (r.length) r[r.length - 1].querySelector('input').focus();
+    });
+    box.appendChild(el('div', { class: 'toolbar' }, [add, el('span', { class: 'count', text: cfg.games.length + ' of 8 cards' })]));
+    var rows = el('div', { class: 'rows' });
+    if (!cfg.games.length) rows.appendChild(el('div', { class: 'empty', text: 'No cards yet. Press "Add card".' }));
+    cfg.games.forEach(function (g, i) {
+      var row;
+      row = rowShell('Card', i, cfg.games, g.name, [
+        field('Name', textIn(g.name, function (v) { g.name = v; row._title.textContent = v || '(new)'; touch(); }, { maxlength: '60' })),
+        field('Number of videos', numIn(g.count, function (v) { g.count = v; touch(); })),
+        field('Short text', textIn(g.desc, function (v) { g.desc = v; touch(); }, { maxlength: '140' }), null, 'wide'),
+        field('Opens this YouTube link (optional)', textIn(g.url, function (v) { g.url = v; touch(); }, { placeholder: 'Leave empty to open your playlists page' }), null, 'wide')
+      ], renderGames);
+      rows.appendChild(row);
+    });
+    box.appendChild(rows);
+  }
+
+  /* ---------- panel: playlists ---------- */
+  var plQuery = '';
+  function renderPlaylists() {
+    var box = $('p-playlists'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Playlists' }));
+    box.appendChild(el('p', { class: 'lead', text: 'Add, change or delete playlists. A filter button appears on the website for every filter name you use.' }));
+    var search = el('input', { type: 'search', placeholder: 'Search your playlists', 'aria-label': 'Search playlists', value: plQuery });
+    var add = el('button', { type: 'button', class: 'btn', text: '+ ADD PLAYLIST' });
+    var info = el('span', { class: 'count' });
+    box.appendChild(el('div', { class: 'toolbar' }, [add, el('div', { class: 'grow' }, [search]), info]));
+    var rowsEl = el('div', { class: 'rows' });
+    var nodes = [];
+    var tags = []; cfg.playlists.forEach(function (p) { var t = String(p.tag || '').trim().toLowerCase(); if (t && tags.indexOf(t) < 0) tags.push(t); });
+    var dl = el('datalist', { id: 'tagList' }, tags.map(function (t) { return el('option', { value: t }); }));
+    function filter() {
+      plQuery = search.value; var q = plQuery.trim().toLowerCase(), shown = 0;
+      nodes.forEach(function (n, i) {
+        var p = cfg.playlists[i], hit = !q || (p.name + ' ' + p.tag).toLowerCase().indexOf(q) >= 0; n.hidden = !hit; if (hit) shown++;
+      });
+      info.textContent = q ? shown + ' of ' + cfg.playlists.length + ' shown' : cfg.playlists.length + ' playlists';
+    }
+    search.addEventListener('input', filter);
+    add.addEventListener('click', function () {
+      plQuery = ''; cfg.playlists.unshift({ name: '', tag: '', count: 0, unit: 'videos', url: '' }); touch(); renderPlaylists();
+      var f = $('p-playlists').querySelector('.row input'); if (f) f.focus();
+    });
+    if (!cfg.playlists.length) rowsEl.appendChild(el('div', { class: 'empty', text: 'No playlists yet. Press "Add playlist".' }));
+    cfg.playlists.forEach(function (p, i) {
+      var row, unit = el('select', {}, [el('option', { value: 'videos', text: 'videos' }), el('option', { value: 'lessons', text: 'lessons' })]);
+      unit.value = p.unit === 'lessons' ? 'lessons' : 'videos';
+      unit.addEventListener('change', function () { p.unit = unit.value; touch(); });
+      row = rowShell('Playlist', i, cfg.playlists, p.name, [
+        field('Playlist name', textIn(p.name, function (v) { p.name = v; row._title.textContent = v || '(new)'; touch(); filter(); }, { maxlength: '100' }), null, 'wide'),
+        field('Filter name', textIn(p.tag, function (v) { p.tag = v; touch(); }, { list: 'tagList', placeholder: 'e.g. skyblock', maxlength: '30' }), 'Playlists with the same filter name appear together.'),
+        field('Number of videos', numIn(p.count, function (v) { p.count = v; touch(); })),
+        field('Count is in', unit),
+        field('Playlist link on YouTube (optional)', textIn(p.url, function (v) { p.url = v; touch(); }, { placeholder: 'https://www.youtube.com/playlist?list=…' }), 'Leave empty to open your playlists page.', 'wide')
+      ], renderPlaylists);
+      nodes.push(row); rowsEl.appendChild(row);
+    });
+    box.appendChild(rowsEl); box.appendChild(dl);
+    filter();
+  }
+
+  /* ---------- panel: latest videos ---------- */
+  function renderVideos() {
+    var box = $('p-videos'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Latest videos' }));
+    box.appendChild(el('p', { class: 'lead', text: 'These show in the "Latest videos" section. Paste the YouTube link of a video and the picture appears automatically. Put the newest on top.' }));
+    var add = el('button', { type: 'button', class: 'btn', text: '+ ADD VIDEO' });
+    add.disabled = cfg.videos.length >= 30;
+    add.addEventListener('click', function () {
+      cfg.videos.unshift({ id: '', list: '', title: '', game: '' }); touch(); renderVideos();
+      var f = $('p-videos').querySelector('.row input'); if (f) f.focus();
+    });
+    box.appendChild(el('div', { class: 'toolbar' }, [add, el('span', { class: 'count', text: cfg.videos.length + ' of 30 videos' })]));
+    var rows = el('div', { class: 'rows' });
+    if (!cfg.videos.length) rows.appendChild(el('div', { class: 'empty', text: 'No videos yet. The website will say new videos are coming soon.' }));
+    cfg.videos.forEach(function (v, i) {
+      var row, status = el('small'), thumb = el('div', { class: 'thumbbox' });
+      function paint() {
+        thumb.textContent = '';
+        if (/^[\w-]{11}$/.test(v.id)) { thumb.appendChild(el('img', { alt: '', src: 'https://i.ytimg.com/vi/' + v.id + '/mqdefault.jpg' })); status.textContent = 'Video ID: ' + v.id + (v.list ? '  ·  opens inside playlist ' + v.list : ''); }
+        else { thumb.textContent = 'No picture'; status.textContent = 'Paste a YouTube video link or the 11-character video ID.'; }
+      }
+      var link = textIn(/^[\w-]{11}$/.test(v.id) ? 'https://www.youtube.com/watch?v=' + v.id + (v.list ? '&list=' + v.list : '') : v.id, function (t) {
+        var p = parseYT(t);
+        if (p) { v.id = p.id; if (p.list !== null) v.list = p.list; } else { v.id = ''; }
+        paint(); touch();
+      }, { placeholder: 'https://www.youtube.com/watch?v=…' });
+      paint();
+      row = rowShell('Video', i, cfg.videos, v.title, [
+        el('div', { class: 'wide vid' }, [thumb, el('div', { class: 'f', style: 'flex:1;min-width:0' }, [el('span', { class: 'fl', text: 'YouTube link' }), link, status])]),
+        field('Title', textIn(v.title, function (t) { v.title = t; row._title.textContent = t || '(new)'; touch(); }, { maxlength: '150' }), null, 'wide'),
+        field('Game label', textIn(v.game, function (t) { v.game = t; touch(); }, { placeholder: 'e.g. Minecraft', maxlength: '30' }))
+      ], renderVideos);
+      rows.appendChild(row);
+    });
+    box.appendChild(rows);
+  }
+
+  /* ---------- panel: Day 100 thumbnail carousel ---------- */
+  function renderDay100() {
+    var box = $('p-day100'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Day 100 thumbnails' }));
+    box.appendChild(el('p', { class: 'lead', text: 'Add up to 12 recent-video thumbnail images. Use a 1280 × 720 (16:9) image URL. Website automatically rotates each slide every 3 seconds.' }));
+    var add = el('button', { type: 'button', class: 'btn', text: '+ ADD THUMBNAIL' }); add.disabled = cfg.day100Thumbnails.length >= 12;
+    add.addEventListener('click', function () { cfg.day100Thumbnails.unshift({ title: '', image: '', link: '' }); touch(); renderDay100(); });
+    box.appendChild(el('div', { class: 'toolbar' }, [add, el('span', { class: 'count', text: cfg.day100Thumbnails.length + ' of 12 thumbnails' })]));
+    var rows = el('div', { class: 'rows' });
+    if (!cfg.day100Thumbnails.length) rows.appendChild(el('div', { class: 'empty', text: 'No thumbnails yet. Add your first one.' }));
+    cfg.day100Thumbnails.forEach(function (v, i) {
+      var row, preview = el('div', { class: 'thumbbox' }), status = el('small');
+      function paint() { preview.textContent = ''; if (/^https:\/\//i.test(v.image || '')) { preview.style.width = '220px'; var im = el('img', { alt: 'thumbnail preview', src: v.image }); preview.appendChild(im); status.textContent = 'Preview shown. Use 1280 × 720 pixels for best quality.'; } else { preview.textContent = 'No image'; status.textContent = 'Paste a direct HTTPS image URL.'; } }
+      row = rowShell('Thumbnail', i, cfg.day100Thumbnails, v.title, [
+        el('div', { class: 'wide vid' }, [preview, el('div', { class: 'f', style: 'flex:1;min-width:0' }, [el('span', { class: 'fl', text: 'Image URL (1280 × 720 recommended)' }), textIn(v.image, function (t) { v.image = t; paint(); touch(); }, { placeholder: 'https://your-image-host/thumbnail.jpg' }), status])]),
+        field('Caption / title', textIn(v.title, function (t) { v.title = t; row._title.textContent = t || '(new)'; touch(); }, { maxlength: '150' }), null, 'wide'),
+        field('YouTube link when clicked', textIn(v.link, function (t) { v.link = t; touch(); }, { placeholder: 'https://youtube.com/watch?v=…' }), 'Optional destination; defaults to channel videos.')
+      ], renderDay100);
+      paint(); rows.appendChild(row);
+    });
+    box.appendChild(rows);
+  }
+
+
+  /* ---------- panel: Featured series ---------- */
+  function renderSeries() {
+    var box = $('p-series'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Featured series card' }));
+    box.appendChild(el('p', { class: 'lead', text: 'Edit the title, description, thumbnail image and button/link shown in the Featured Series section.' }));
+    var v = cfg.series;
+    var preview = el('div', { class: 'thumbbox' }), status = el('small');
+    function paint() { preview.textContent = ''; if (/^https:\/\//i.test(v.image || '')) { preview.style.width = '260px'; var im = el('img', { alt: 'Featured series thumbnail preview', src: v.image }); preview.appendChild(im); status.textContent = 'Preview shown. Use a 1280 × 720 image for best results.'; } else { preview.textContent = 'No thumbnail image set'; status.textContent = 'Optional: paste a direct HTTPS image URL.'; } }
+    box.appendChild(el('div', { class: 'fields' }, [
+      field('Series title', textIn(v.title, function (t) { v.title = t; touch(); }, { maxlength: '120' }), null, 'wide'),
+      field('Description text', textIn(v.desc, function (t) { v.desc = t; touch(); }, { maxlength: '300' }), null, 'wide'),
+      field('Button label', textIn(v.buttonText, function (t) { v.buttonText = t; touch(); }, { maxlength: '60' }), null),
+      field('Button URL', textIn(v.buttonUrl, function (t) { v.buttonUrl = t; touch(); }, { placeholder: 'https://youtube.com/playlist…', maxlength: '500' }), 'HTTPS link', 'wide'),
+      field('Thumbnail URL (optional, 1280 × 720 recommended)', el('div', { class: 'f' }, [textIn(v.image, function (t) { v.image = t; paint(); touch(); }, { placeholder: 'https://image-host/series-thumbnail.jpg', maxlength: '1000' }), preview, status]), null, 'wide')
+    ]));
+    paint();
+  }
+
+  /* ---------- panel: Community cards and footer ---------- */
+  function renderCommunity() {
+    var box = $('p-community'); box.textContent = '';
+    box.appendChild(el('h2', { text: 'Community boxes & footer' }));
+    box.appendChild(el('p', { class: 'lead', text: 'Edit the Join the Squad boxes, add more cards or remove them, and change the footer copyright and link.' }));
+    var add = el('button', { type: 'button', class: 'btn', text: '+ ADD COMMUNITY BOX' }); add.disabled = cfg.communityCards.length >= 12;
+    add.addEventListener('click', function () { cfg.communityCards.push({ title: '', desc: '', buttonText: '', buttonUrl: '', detail: '' }); touch(); renderCommunity(); });
+    box.appendChild(el('div', { class: 'toolbar' }, [add, el('span', { class: 'count', text: cfg.communityCards.length + ' of 12 boxes' })]));
+    var rows = el('div', { class: 'rows' });
+    if (!cfg.communityCards.length) rows.appendChild(el('div', { class: 'empty', text: 'No community boxes. Add one to show a card on the website.' }));
+    cfg.communityCards.forEach(function (v, i) {
+      var row = rowShell('Community box', i, cfg.communityCards, v.title, [
+        field('Box title', textIn(v.title, function (t) { v.title = t; row._title.textContent = t || '(new)'; touch(); }, { maxlength: '60' }), null, 'wide'),
+        field('Description', textIn(v.desc, function (t) { v.desc = t; touch(); }, { maxlength: '200' }), null, 'wide'),
+        field('Button label (optional)', textIn(v.buttonText, function (t) { v.buttonText = t; touch(); }, { maxlength: '60' }), 'Leave empty to hide the button.'),
+        field('Button URL (optional)', textIn(v.buttonUrl, function (t) { v.buttonUrl = t; touch(); }, { placeholder: 'https://…' }), 'Any HTTPS link.'),
+        field('Extra text / server address (optional)', textIn(v.detail, function (t) { v.detail = t; touch(); }, { maxlength: '100' }), null, 'wide')
+      ], renderCommunity); rows.appendChild(row);
+    });
+    box.appendChild(rows);
+    box.appendChild(el('h2', { text: 'Footer settings' }));
+    box.appendChild(el('div', { class: 'fields' }, [
+      field('Footer copyright / disclaimer text', textIn(cfg.footerText, function (t) { cfg.footerText = t; touch(); }, { maxlength: '250' }), null, 'wide'),
+      field('Footer link label', textIn(cfg.footerLinkText, function (t) { cfg.footerLinkText = t; touch(); }, { maxlength: '80' }), null),
+      field('Footer link URL', textIn(cfg.footerLinkUrl, function (t) { cfg.footerLinkUrl = t; touch(); }, { placeholder: 'https://…', maxlength: '500' }), null, 'wide')
+    ]));
+  }
+
+  function renderAll() { renderSubs(); renderGames(); renderPlaylists(); renderVideos(); renderDay100(); renderSeries(); renderCommunity(); touch(); }
+
+  /* ---------- save ---------- */
+  function problems() {
+    var out = [];
+    if (subsBad || !Number.isFinite(cfg.subs)) out.push({ tab: 'subs', msg: 'The subscriber count is not a valid number.' });
+    cfg.games.forEach(function (g, i) {
+      if (!String(g.name).trim()) out.push({ tab: 'games', msg: 'Card ' + (i + 1) + ' needs a name.' });
+      else if (!isCount(g.count)) out.push({ tab: 'games', msg: 'Card ' + (i + 1) + ': the number of videos must be a whole number, 0 or more.' });
+      else if (g.url && !isYt(g.url)) out.push({ tab: 'games', msg: 'Card ' + (i + 1) + ': the link must be a youtube.com link starting with https://' });
+    });
+    cfg.playlists.forEach(function (p, i) {
+      if (!String(p.name).trim()) out.push({ tab: 'playlists', msg: 'Playlist ' + (i + 1) + ' needs a name.' });
+      else if (!isCount(p.count)) out.push({ tab: 'playlists', msg: 'Playlist ' + (i + 1) + ' (' + p.name + '): the number of videos must be a whole number, 0 or more.' });
+      else if (p.url && !isYt(p.url)) out.push({ tab: 'playlists', msg: 'Playlist ' + (i + 1) + ' (' + p.name + '): the link must be a youtube.com link starting with https://' });
+      else if (p.tag && !/^[a-z0-9][a-z0-9 -]*$/i.test(p.tag.trim())) out.push({ tab: 'playlists', msg: 'Playlist ' + (i + 1) + ' (' + p.name + '): the filter name can only use letters, numbers, spaces and hyphens.' });
+    });
+    cfg.communityCards.forEach(function (v, i) { if (!String(v.title || '').trim()) out.push({ tab: 'community', msg: 'Community box ' + (i + 1) + ' needs a title.' }); else if (v.buttonUrl && !/^https:\//i.test(v.buttonUrl)) out.push({ tab: 'community', msg: 'Community box ' + (i + 1) + ' link must start with HTTPS.' }); });
+    if (cfg.series && cfg.series.buttonUrl && !/^https:\//i.test(cfg.series.buttonUrl)) out.push({ tab: 'series', msg: 'Featured series link must start with HTTPS.' });
+    if (cfg.series && cfg.series.image && !/^https:\//i.test(cfg.series.image)) out.push({ tab: 'series', msg: 'Featured series thumbnail must be an HTTPS image URL.' });
+    if (cfg.footerLinkUrl && !/^https:\//i.test(cfg.footerLinkUrl)) out.push({ tab: 'community', msg: 'Footer link must start with HTTPS.' });
+    cfg.day100Thumbnails.forEach(function (v, i) {
+      if (!/^https:\/\//i.test(v.image || "")) out.push({ tab: "day100", msg: "Thumbnail " + (i + 1) + " needs a direct HTTPS image URL." });
+      else if (v.link && !isYt(v.link)) out.push({ tab: "day100", msg: "Thumbnail " + (i + 1) + " link must be a YouTube link." });
+    });
+    cfg.videos.forEach(function (v, i) {
+      if (!/^[\w-]{11}$/.test(v.id)) out.push({ tab: 'videos', msg: 'Video ' + (i + 1) + ' needs a valid YouTube link.' });
+      else if (!String(v.title).trim()) out.push({ tab: 'videos', msg: 'Video ' + (i + 1) + ' needs a title.' });
+    });
+    return out;
+  }
+  function save() {
+    if (!dirty) return;
+    var p = problems();
+    if (p.length) { switchTab(p[0].tab); toast(p[0].msg, true); return; }
+    var body = JSON.parse(JSON.stringify(cfg));
+    body.games.forEach(function (g) { g.count = Number(g.count); });
+    body.playlists.forEach(function (x) { x.count = Number(x.count); x.tag = String(x.tag || '').trim().toLowerCase(); });
+    var btn = $('save'); btn.disabled = true; btn.textContent = 'Saving…';
+    api('/api/config', 'PUT', body).then(function (res) {
+      if (res.status === 401) { forgetLogin('Your login ended. Log in again. Your changes are still here.'); return; }
+      if (!res.ok) { toast(res.data.error || 'Could not save. Try again.', true); touch(); return; }
+      cfg = normalize(res.data); saved = JSON.stringify(cfg); renderAll(); toast('Saved. Your website now shows the new values.');
+    }).catch(function () { toast('Could not reach the server. Check your internet and try again.', true); touch(); })
+      .then(function () { btn.textContent = 'Save changes'; touch(); });
+  }
+
+  /* ---------- login / logout ---------- */
+  function showLogin(msg) {
+    $('boot').hidden = true; $('appView').hidden = true; $('loginView').hidden = false;
+    $('loginErr').textContent = msg || ''; $('pw').value = ''; $('pw').focus();
+  }
+  function forgetLogin(msg) { token = null; keep(KEY, null); showLogin(msg); }
+  function enter() {
+    $('loginView').hidden = true; $('boot').hidden = false; $('boot').textContent = 'Loading your site data…';
+    var ready = cfg ? Promise.resolve() : api('/api/config').then(function (res) {
+      if (!res.ok) throw new Error('load');
+      cfg = normalize(res.data); saved = JSON.stringify(cfg);
+    });
+    ready.then(function () {
+      $('boot').hidden = true; $('appView').hidden = false; renderAll(); switchTab(tab);
+    }).catch(function () { $('boot').textContent = 'Could not load your site data. Refresh the page to try again.'; });
+  }
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = $('loginBtn'); btn.disabled = true; btn.textContent = 'CHECKING…'; $('loginErr').textContent = '';
+    api('/api/login', 'POST', { password: $('pw').value }).then(function (res) {
+      if (res.ok && res.data.token) { token = res.data.token; keep(KEY, token); $('pw').value = ''; enter(); return; }
+      if (res.status === 404) $('loginErr').textContent = 'The login service is not on this site yet. Deploy the full project, not just the page.';
+      else $('loginErr').textContent = res.data.error || 'Login failed.';
+    }).catch(function () { $('loginErr').textContent = 'Could not reach the server. Check your internet and try again.'; })
+      .then(function () { btn.disabled = false; btn.textContent = 'LOG IN'; });
+  });
+  $('showPw').addEventListener('click', function () {
+    var b = $('showPw'), on = $('pw').type === 'password'; $('pw').type = on ? 'text' : 'password'; b.textContent = on ? 'Hide' : 'Show'; b.setAttribute('aria-pressed', String(on));
+  });
+
+  var armTimer = null;
+  function twoStep(btn, label, armedLabel, action, condition) {
+    var armed = false;
+    btn.addEventListener('click', function () {
+      if (condition && !condition()) { action(); return; }
+      if (!armed) { armed = true; btn.textContent = armedLabel; btn.classList.add('armed'); armTimer = setTimeout(reset, 3500); return; }
+      reset(); action();
+    });
+    function reset() { armed = false; clearTimeout(armTimer); btn.textContent = label; btn.classList.remove('armed'); }
+  }
+  twoStep($('logout'), 'Log out', 'Unsaved changes will be lost. Click again', function () { cfg = null; saved = ''; dirty = false; forgetLogin(''); }, function () { return dirty; });
+  twoStep($('discard'), 'Discard changes', 'Sure? Click again', function () { cfg = JSON.parse(saved); renderAll(); toast('Changes discarded.'); });
+  $('save').addEventListener('click', save);
+  document.querySelector('.tabs').addEventListener('click', function (e) { var b = e.target.closest('[data-tab]'); if (b) switchTab(b.getAttribute('data-tab')); });
+  document.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && !$('appView').hidden) { e.preventDefault(); save(); } });
+  window.addEventListener('beforeunload', function (e) { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- start ---------- */
+  token = recall(KEY);
+  if (!token) showLogin('');
+  else api('/api/session').then(function (res) { if (res.ok) enter(); else forgetLogin(''); }).catch(function () { forgetLogin(''); });
+})();
+</script>
+</body>
+</html>
