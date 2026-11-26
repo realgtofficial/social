@@ -255,10 +255,10 @@ input::placeholder { color: #6f69a3; }
         var author = p.anonymous ? 'Anonymous' : (p.name || 'Unnamed');
         card.appendChild(el('header', {}, [el('b', { text: author }), el('span', { class: 'moderation-meta', text: new Date(p.createdAt || Date.now()).toLocaleString() })]));
         card.appendChild(el('p', { text: p.text || '' }));
-        card.appendChild(el('div', { class: 'moderation-meta', text: '👍 ' + (p.likes || 0) + ' · 👎 ' + (p.dislikes || 0) + ' · Comments ' + (p.commentCount || 0) }));
+        card.appendChild(el('div', { class: 'moderation-meta', text: 'Reactions ' + (p.reactionTotal || 0) + ' · Replies ' + (p.replyCount || 0) + ' · Views ' + (p.views || 0) }));
         var del = el('button', { type: 'button', class: 'mini danger', text: 'Delete post' });
         del.addEventListener('click', function () {
-          if (!confirm('Delete this post and all its comments and reactions? This cannot be undone.')) return;
+          if (!confirm('Delete this thread and all its replies and reactions? This cannot be undone.')) return;
           del.disabled = true; del.textContent = 'Deleting…';
           api('/api/discuss?action=delete', 'POST', { postId: p.id }).then(function (out) {
             if (out.status === 401) { forgetLogin('Your admin session ended. Log in again.'); return; }

@@ -197,6 +197,12 @@ body { overflow-x: clip; }
 .discuss-comments { margin-top:14px; border-left:3px solid var(--violet); padding-left:14px; display:grid; gap:12px; }
 .discuss-comment { border-bottom:1px solid var(--line); padding-bottom:10px; } .discuss-comment p { margin:5px 0; white-space:pre-wrap; }
 .discuss-comment-form { display:grid; gap:8px; margin-top:12px; } .discuss-comment-form input,.discuss-comment-form textarea { width:100%; background:#0d0b1e; color:var(--ink); border:2px solid var(--line); padding:10px; font:inherit; } .discuss-comment-form textarea { min-height:70px; resize:vertical; } .discuss-comment-form button { justify-self:start; background:var(--green); color:#052b10; border:2px solid #000; padding:8px 12px; font-family:var(--pixel); cursor:pointer; }
+.discuss-reacts { display:inline-flex; gap:6px; flex-wrap:wrap; } .discuss-actions { align-items:center; }
+.discuss-actions .react { padding:5px 9px; border-radius:14px; } .discuss-actions .react b { font-weight:700; }
+.discuss-views { margin-left:auto; color:var(--muted); font-size:13px; }
+.reply-head { display:flex; gap:10px; flex-wrap:wrap; align-items:center; } .reply-head .reply-name { flex:1 1 160px; } .reply-head input:disabled { opacity:.55; }
+.reply-status { color:var(--gold); min-height:1.1em; }
+.reply-head .anon-toggle { white-space:nowrap; flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; } .reply-head input[type=checkbox] { width:auto; }
 @media(max-width:560px){ .discuss-post{padding:13px}.discuss-form{padding:13px}.discuss-actions button{font-size:13px;padding:6px 8px} }
 
 footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26px 40px; color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -291,13 +297,13 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
     <div class="sec-head"><h2>Let's Discuss</h2><span class="discuss-live">COMMUNITY BOARD</span></div>
     <div class="discuss-intro">Share gaming ideas, find co-op players, ask questions or post anything gaming-related. Use your name or post anonymously.</div>
     <form id="discussForm" class="discuss-form">
-      <div class="discuss-form-head"><label for="discussName">Display name <small>(required when anonymous is off)</small></label><label class="anon-toggle"><input id="discussAnon" type="checkbox" checked onchange="var n=document.getElementById('discussName'); n.disabled=this.checked; n.required=!this.checked; if(this.checked)n.value='';"> Post anonymously</label></div>
+      <div class="discuss-form-head"><label for="discussName">Display name <small>(turns off when anonymous is ticked)</small></label><label class="anon-toggle"><input id="discussAnon" type="checkbox"> Post anonymously</label></div>
       <input id="discussName" maxlength="30" placeholder="Your name" autocomplete="nickname">
       <textarea id="discussText" maxlength="2000" rows="4" placeholder="What would you like to discuss? (max 2000 characters)" required></textarea>
       <div class="discuss-form-foot"><small id="discussCount">0 / 2000</small><button class="btn gold" type="submit">POST</button></div>
       <div id="discussStatus" role="status" class="discuss-status"></div>
     </form>
-    <div class="discuss-list-head"><h3>Latest posts</h3><button type="button" id="discussRefresh" class="discuss-refresh">↻ Refresh</button></div>
+    <div class="discuss-list-head"><h3>Latest threads</h3><button type="button" id="discussRefresh" class="discuss-refresh">↻ Refresh</button></div>
     <div id="discussPosts" class="discuss-posts"><div class="discuss-empty">Loading community posts…</div></div>
   </section>
 
@@ -604,29 +610,86 @@ fetch('/api/config', { cache: 'no-store' })
   }
   setTimeout(run, 1500);
 })();
-document.getElementById('yr').textContent = new Date().getFullYear();
-/* Public discussion board. Anonymous posts do not require a display name. */
+var yrEl = document.getElementById('yr'); if (yrEl) yrEl.textContent = new Date().getFullYear();
+/* Public discussion board: Discord-style threads with emoji reactions, replies and view counts. */
 (function(){
   var root=document.getElementById('discussPosts'), form=document.getElementById('discussForm'), nameEl=document.getElementById('discussName'), anon=document.getElementById('discussAnon'), textEl=document.getElementById('discussText'), status=document.getElementById('discussStatus'), count=document.getElementById('discussCount');
   if(!root||!form||!nameEl||!anon||!textEl)return;
-  var KEY='gt-discuss-visitor-v1';
+  var KEY='gt-discuss-visitor-v1', NAMEKEY='gt-discuss-name-v1';
   function visitor(){var id='';try{id=localStorage.getItem(KEY)||'';if(!/^[\w-]{8,80}$/.test(id)){id=(crypto.randomUUID?crypto.randomUUID():('v'+Math.random().toString(36).slice(2)+Date.now()));localStorage.setItem(KEY,id);}}catch(e){id='visitor_'+Math.random().toString(36).slice(2)+Date.now();}return id;}
   var visitorId=visitor();
   function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function date(v){try{return new Date(v).toLocaleString();}catch(e){return 'recently';}}
   function api(url,opts){opts=opts||{};opts.headers=Object.assign({'content-type':'application/json'},opts.headers||{});return fetch(url,opts).then(function(r){return r.text().then(function(raw){var d;try{d=JSON.parse(raw);}catch(_){d={error:raw||('HTTP '+r.status)};}if(!r.ok)throw new Error((d.error||('HTTP '+r.status))+' (status '+r.status+')');return d;});});}
+  function post(action,body){return api('/api/discuss?action='+action,{method:'POST',body:JSON.stringify(body)});}
   function statusMsg(t,err){status.textContent=t||'';status.style.color=err?'var(--red)':'var(--gold)';}
-  function setAnon(){nameEl.disabled=anon.checked;nameEl.required=!anon.checked;if(anon.checked){nameEl.value='';nameEl.setCustomValidity('');}}
+  function savedName(){try{return localStorage.getItem(NAMEKEY)||'';}catch(e){return '';}}
+  function saveName(n){try{localStorage.setItem(NAMEKEY,n);}catch(e){}}
+  /* Name box is ON by default. Ticking "Post anonymously" turns it off. */
+  function setAnon(){nameEl.disabled=anon.checked;nameEl.required=!anon.checked;if(anon.checked){nameEl.value='';}}
+  anon.checked=false;if(!nameEl.value)nameEl.value=savedName();
   anon.addEventListener('change',setAnon);setAnon();
   textEl.addEventListener('input',function(){count.textContent=textEl.value.length+' / 2000';});
+
+  function reactsHtml(list){return (list||[]).map(function(r){return '<button type="button" class="react" data-emoji="'+escHtml(r.emoji)+'" aria-pressed="'+(!!r.mine)+'" aria-label="React '+escHtml(r.emoji)+'">'+escHtml(r.emoji)+(r.count?' <b>'+r.count+'</b>':'')+'</button>';}).join('');}
+  function viewsText(n){n=n||0;return '👁 '+n+(n===1?' view':' views');}
+  function replyBtnText(n){n=n||0;return '💬 '+(n?n+(n===1?' reply':' replies'):'Reply');}
   function render(posts){
-    if(!posts.length){root.innerHTML='<div class="discuss-empty">No posts yet. Be the first to start a discussion!</div>';return;}
-    root.innerHTML=posts.map(function(p){var mine=p.myReaction||'';return '<article class="discuss-post" data-post="'+escHtml(p.id)+'"><div class="discuss-post-top"><div><span class="discuss-author">'+escHtml(p.anonymous?'Anonymous':(p.name||'Member'))+'</span>'+(p.anonymous?' <small>(anonymous)</small>':'')+'</div><time class="discuss-time">'+escHtml(date(p.createdAt))+'</time></div><div class="discuss-post-text">'+escHtml(p.text)+'</div><div class="discuss-actions"><button type="button" data-react="like" aria-pressed="'+(mine==='like')+'">👍 Like '+(p.likes||0)+'</button><button type="button" data-react="dislike" aria-pressed="'+(mine==='dislike')+'">👎 Dislike '+(p.dislikes||0)+'</button><button type="button" data-comments>💬 Comments '+(p.commentCount||0)+'</button></div><div class="discuss-comment-area" hidden></div></article>';}).join('');
+    if(!posts.length){root.innerHTML='<div class="discuss-empty">No threads yet. Start the first one!</div>';return;}
+    root.innerHTML=posts.map(function(p){return '<article class="discuss-post" data-post="'+escHtml(p.id)+'"><div class="discuss-post-top"><div><span class="discuss-author">'+escHtml(p.anonymous?'Anonymous':(p.name||'Member'))+'</span>'+(p.anonymous?' <small>(anonymous)</small>':'')+'</div><time class="discuss-time">'+escHtml(date(p.createdAt))+'</time></div><div class="discuss-post-text">'+escHtml(p.text)+'</div><div class="discuss-actions"><span class="discuss-reacts">'+reactsHtml(p.reactions)+'</span><button type="button" class="thread-btn" data-thread>'+replyBtnText(p.replyCount)+'</button><span class="discuss-views" data-views>'+viewsText(p.views)+'</span></div><div class="discuss-comment-area" hidden></div></article>';}).join('');
   }
-  function load(){root.innerHTML='<div class="discuss-empty">Loading community posts…</div>';api('/api/discuss?visitorId='+encodeURIComponent(visitorId)).then(function(d){render(d.posts||[]);}).catch(function(e){root.innerHTML='<div class="discuss-empty">Community board could not load: '+escHtml(e.message||'request failed')+'. Please try Refresh.</div>';});}
-  form.addEventListener('submit',function(e){e.preventDefault();var message=textEl.value.trim();if(!message){statusMsg('Please write a post first.',true);return;}var displayName=anon.checked?'Anonymous':nameEl.value.trim();if(!anon.checked&&!displayName){nameEl.disabled=false;nameEl.required=true;nameEl.focus();statusMsg('Enter your name or check Post anonymously.',true);return;}nameEl.setCustomValidity('');var submit=form.querySelector('button[type=submit]');submit.disabled=true;statusMsg('Posting…');api('/api/discuss?action=create',{method:'POST',body:JSON.stringify({text:message,name:displayName,anonymous:anon.checked,visitorId:visitorId})}).then(function(d){textEl.value='';count.textContent='0 / 2000';statusMsg('Your post is published!');load();}).catch(function(e){statusMsg('Post failed: '+(e.message||'Please try again.'),true);}).finally(function(){submit.disabled=false;});});
-  root.addEventListener('click',function(e){var postEl=e.target.closest('[data-post]');if(!postEl)return;var id=postEl.getAttribute('data-post'),btn=e.target.closest('[data-react]');if(btn){var current=btn.getAttribute('aria-pressed')==='true',reaction=current?'none':btn.getAttribute('data-react');btn.disabled=true;api('/api/discuss?action=react',{method:'POST',body:JSON.stringify({postId:id,visitorId:visitorId,reaction:reaction})}).then(load).catch(function(err){alert(err.message);}).finally(function(){btn.disabled=false;});return;}var commentsBtn=e.target.closest('[data-comments]');if(commentsBtn){var area=postEl.querySelector('.discuss-comment-area');area.hidden=!area.hidden;if(area.hidden)return;area.innerHTML='<div class="discuss-empty">Loading comments…</div>';api('/api/discuss?action=comments&postId='+encodeURIComponent(id)).then(function(d){var arr=d.comments||[];area.innerHTML='<div class="discuss-comments">'+(arr.length?arr.map(function(c){return '<div class="discuss-comment"><div><b class="discuss-author">'+escHtml(c.name||'Anonymous')+'</b> <small class="discuss-time">'+escHtml(date(c.createdAt))+'</small></div><p>'+escHtml(c.text)+'</p></div>';}).join(''):'<small class="discuss-time">No comments yet. Start the conversation!</small>')+'</div><form class="discuss-comment-form"><input maxlength="30" placeholder="Display name (optional)" class="comment-name" '+(anon.checked?'disabled':'')+' value="'+(anon.checked?'':escHtml(nameEl.value))+'"><textarea maxlength="500" required placeholder="Write a comment (max 500 characters)"></textarea><button type="submit">COMMENT</button></form>';}).catch(function(err){area.innerHTML='<div class="discuss-empty">Could not load comments: '+escHtml(err.message)+'</div>';});return;}});
-  root.addEventListener('submit',function(e){var cf=e.target.closest('.discuss-comment-form');if(!cf)return;e.preventDefault();var post=cf.closest('[data-post]'),id=post.getAttribute('data-post'),textarea=cf.querySelector('textarea'),name=cf.querySelector('.comment-name').value.trim();if(!textarea.value.trim())return;var submit=cf.querySelector('button');submit.disabled=true;api('/api/discuss?action=comment',{method:'POST',body:JSON.stringify({postId:id,visitorId:visitorId,name:name,text:textarea.value.trim()})}).then(function(){var area=post.querySelector('.discuss-comment-area');area.hidden=true;load();}).catch(function(err){alert(err.message);}).finally(function(){submit.disabled=false;});});
+  function load(){root.innerHTML='<div class="discuss-empty">Loading community threads…</div>';return api('/api/discuss?visitorId='+encodeURIComponent(visitorId)).then(function(d){render(d.posts||[]);}).catch(function(e){root.innerHTML='<div class="discuss-empty">Community board could not load: '+escHtml(e.message||'request failed')+'. Please try Refresh.</div>';});}
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    var message=textEl.value.trim();if(!message){statusMsg('Please write something first.',true);return;}
+    var displayName=anon.checked?'':nameEl.value.trim();
+    if(!anon.checked&&!displayName){nameEl.focus();statusMsg('Enter your name, or tick Post anonymously.',true);return;}
+    var submit=form.querySelector('button[type=submit]');submit.disabled=true;statusMsg('Posting…');
+    post('create',{text:message,name:displayName,anonymous:anon.checked,visitorId:visitorId}).then(function(){
+      if(displayName)saveName(displayName);
+      textEl.value='';count.textContent='0 / 2000';statusMsg('Your thread is published!');load();
+    }).catch(function(err){statusMsg('Post failed: '+(err.message||'Please try again.'),true);}).finally(function(){submit.disabled=false;});
+  });
+
+  function threadHtml(arr){
+    return '<div class="discuss-comments">'+(arr.length?arr.map(function(c){return '<div class="discuss-comment"><div><b class="discuss-author">'+escHtml(c.anonymous?'Anonymous':(c.name||'Member'))+'</b> <small class="discuss-time">'+escHtml(date(c.createdAt))+'</small></div><p>'+escHtml(c.text)+'</p></div>';}).join(''):'<small class="discuss-time">No replies yet. Start the conversation!</small>')+'</div>'+
+    '<form class="discuss-comment-form"><div class="reply-head"><input maxlength="30" placeholder="Your name" class="reply-name" value="'+escHtml(nameEl.value||savedName())+'"><label class="anon-toggle"><input type="checkbox" class="reply-anon"> Reply anonymously</label></div><textarea maxlength="500" required placeholder="Write a reply (max 500 characters)"></textarea><button type="submit">REPLY</button><small class="reply-status" role="status"></small></form>';
+  }
+  function openThread(postEl,reload){
+    var area=postEl.querySelector('.discuss-comment-area'),id=postEl.getAttribute('data-post');
+    if(!reload)area.innerHTML='<div class="discuss-empty">Loading replies…</div>';
+    return api('/api/discuss?action=comments&postId='+encodeURIComponent(id)).then(function(d){
+      var keep=area.querySelector('textarea'),draft=keep?keep.value:'';
+      area.innerHTML=threadHtml(d.comments||[]);
+      var ta=area.querySelector('textarea');if(ta&&draft)ta.value=draft;
+      postEl.querySelector('.thread-btn').textContent=replyBtnText(d.replyCount);
+      postEl.querySelector('[data-views]').textContent=viewsText(d.views);
+    }).catch(function(err){area.innerHTML='<div class="discuss-empty">Could not load replies: '+escHtml(err.message)+'</div>';});
+  }
+
+  root.addEventListener('click',function(e){
+    var postEl=e.target.closest('[data-post]');if(!postEl)return;var id=postEl.getAttribute('data-post');
+    var btn=e.target.closest('.react');
+    if(btn){btn.disabled=true;post('react',{postId:id,visitorId:visitorId,emoji:btn.getAttribute('data-emoji')}).then(function(d){postEl.querySelector('.discuss-reacts').innerHTML=reactsHtml(d.reactions);}).catch(function(err){alert(err.message);btn.disabled=false;});return;}
+    if(e.target.closest('[data-thread]')){
+      var area=postEl.querySelector('.discuss-comment-area');area.hidden=!area.hidden;if(area.hidden)return;
+      openThread(postEl,false);
+      post('view',{postId:id,visitorId:visitorId}).then(function(d){var v=postEl.querySelector('[data-views]');if(v)v.textContent=viewsText(d.views);}).catch(function(){});
+    }
+  });
+  root.addEventListener('change',function(e){
+    var a=e.target.closest('.reply-anon');if(!a)return;var n=a.closest('form').querySelector('.reply-name');n.disabled=a.checked;if(a.checked)n.value='';else n.value=nameEl.value||savedName();
+  });
+  root.addEventListener('submit',function(e){
+    var cf=e.target.closest('.discuss-comment-form');if(!cf)return;e.preventDefault();
+    var postEl=cf.closest('[data-post]'),id=postEl.getAttribute('data-post'),ta=cf.querySelector('textarea'),nm=cf.querySelector('.reply-name'),an=cf.querySelector('.reply-anon'),st=cf.querySelector('.reply-status');
+    var text=ta.value.trim(),name=an.checked?'':nm.value.trim();
+    if(!text)return;
+    if(!an.checked&&!name){nm.focus();st.textContent='Enter your name, or tick Reply anonymously.';st.style.color='var(--red)';return;}
+    var submit=cf.querySelector('button[type=submit]');submit.disabled=true;
+    post('comment',{postId:id,visitorId:visitorId,name:name,anonymous:an.checked,text:text}).then(function(){if(name)saveName(name);ta.value='';return openThread(postEl,true);}).catch(function(err){st.textContent='Reply failed: '+err.message;st.style.color='var(--red)';}).finally(function(){submit.disabled=false;});
+  });
   var refresh=document.getElementById('discussRefresh');if(refresh)refresh.addEventListener('click',load);load();
 })();
 </script>

@@ -5,19 +5,30 @@ const clean = (v: unknown, max: number) => (typeof v === "string" ? v.trim().sli
 const validId = (v: unknown) => typeof v === "string" && /^[a-zA-Z0-9_-]{8,80}$/.test(v);
 const validVisitor = validId;
 
-const PUBLIC_LIMIT = 100; // newest posts shown on the public board
-const ADMIN_LIMIT = 200; // newest posts shown in admin moderation
+const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+const PUBLIC_LIMIT = 100; // newest threads shown on the public board
+const ADMIN_LIMIT = 200; // newest threads shown in admin moderation
+const MAX_REPLIES = 500;
+const MAX_VIEWERS = 20000;
 
-// Each post is ONE KV entry "post:<id>" holding the post, its reactions and its comments.
-// The id starts with an inverted timestamp, so listing keys returns the newest posts first.
+// Each thread is ONE KV entry "post:<id>" holding the post, its reactions, replies and viewers.
+// The id starts with an inverted timestamp, so listing keys returns the newest threads first.
 const newId = (now: number) => String(9_999_999_999_999 - now).padStart(13, "0") + "-" + crypto.randomUUID();
 
-type Doc = { id: string; name: string; anonymous: boolean; text: string; createdAt: number; visitorId: string; reactions: Record<string, string>; comments: any[] };
-
-const counts = (reactions: Record<string, string>) => {
-  const vals = Object.values(reactions || {});
-  return { likes: vals.filter((v) => v === "like").length, dislikes: vals.filter((v) => v === "dislike").length };
+type Doc = {
+  id: string; name: string; anonymous: boolean; text: string; createdAt: number; visitorId: string;
+  reactions: Record<string, string[]>; // emoji -> visitor ids
+  comments: any[]; // replies
+  views: Record<string, number>; // visitor id -> 1 (unique viewers)
 };
+
+const reactionList = (d: Doc, visitorId: string | null) =>
+  EMOJIS.map((emoji) => {
+    const ids = (d.reactions && d.reactions[emoji]) || [];
+    return { emoji, count: ids.length, mine: !!visitorId && ids.includes(visitorId) };
+  });
+const viewCount = (d: Doc) => Object.keys(d.views || {}).length;
+const replyCount = (d: Doc) => (Array.isArray(d.comments) ? d.comments.length : 0);
 
 async function loadPosts(env: Env, limit: number): Promise<Doc[]> {
   const listed = await env.KV.list({ prefix: "post:", limit });
@@ -37,7 +48,7 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     return reply({
       posts: docs.map((p) => ({
         id: p.id, name: p.name || "Anonymous", anonymous: Boolean(p.anonymous), text: p.text, createdAt: p.createdAt,
-        ...counts(p.reactions), commentCount: Array.isArray(p.comments) ? p.comments.length : 0,
+        reactionTotal: reactionList(p, null).reduce((n, r) => n + r.count, 0), views: viewCount(p), replyCount: replyCount(p),
       })),
     });
   }
@@ -46,12 +57,12 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     let docs: Doc[];
     try { docs = await loadPosts(env, PUBLIC_LIMIT); }
     catch (err) { return reply({ error: `Community posts could not be read: ${err instanceof Error ? err.message : String(err)}` }, 503); }
-    const visitorId = url.searchParams.get("visitorId");
+    const raw = url.searchParams.get("visitorId");
+    const visitorId = validVisitor(raw) ? raw : null;
     return reply({
       posts: docs.map((p) => ({
         id: p.id, name: p.name, anonymous: p.anonymous, text: p.text, createdAt: p.createdAt,
-        myReaction: validVisitor(visitorId) ? (p.reactions || {})[visitorId!] || "" : "",
-        ...counts(p.reactions), commentCount: Array.isArray(p.comments) ? p.comments.length : 0,
+        reactions: reactionList(p, visitorId), views: viewCount(p), replyCount: replyCount(p),
       })),
     });
   }
@@ -60,7 +71,8 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     const postId = url.searchParams.get("postId");
     if (!validId(postId)) return reply({ error: "Invalid post." }, 400);
     const doc: Doc | null = await getJSON(env.KV, `post:${postId}`);
-    return reply({ comments: doc && Array.isArray(doc.comments) ? doc.comments.slice(-200) : [] });
+    if (!doc) return reply({ error: "Post not found." }, 404);
+    return reply({ comments: Array.isArray(doc.comments) ? doc.comments.slice(-200) : [], views: viewCount(doc), replyCount: replyCount(doc) });
   }
 
   if (req.method !== "POST") return reply({ error: "Method not allowed." }, 405);
@@ -82,40 +94,56 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     if (!anonymous && !name) return reply({ error: "Display name is required unless you post anonymously." }, 400);
     if (!validVisitor(visitorId)) return reply({ error: "Refresh the page and try again." }, 400);
     const now = Date.now(), id = newId(now);
-    const doc: Doc = { id, name: anonymous ? "Anonymous" : name, anonymous, text, createdAt: now, visitorId, reactions: {}, comments: [] };
+    const doc: Doc = { id, name: anonymous ? "Anonymous" : name, anonymous, text, createdAt: now, visitorId, reactions: {}, comments: [], views: {} };
     try {
       await setJSON(env.KV, `post:${id}`, doc);
-      const { visitorId: _v, reactions: _r, comments: _c, ...post } = doc;
-      return reply({ post }, 201);
+      return reply({ post: { id, name: doc.name, anonymous, text, createdAt: now } }, 201);
     } catch (err) {
       return reply({ error: `Post save failed in storage: ${err instanceof Error ? err.message : String(err)}` }, 503);
     }
   }
 
-  if (action === "comment") {
-    const postId = body.postId, text = clean(body.text, 500), name = clean(body.name, 30), visitorId = body.visitorId;
-    if (!validId(postId) || !validVisitor(visitorId) || !text) return reply({ error: "Post, name and comment are required." }, 400);
+  if (action === "comment") { // a reply in the thread
+    const postId = body.postId, text = clean(body.text, 500), name = clean(body.name, 30), visitorId = body.visitorId, anonymous = body.anonymous === true;
+    if (!validId(postId) || !validVisitor(visitorId)) return reply({ error: "Invalid reply." }, 400);
+    if (!text) return reply({ error: "Write a reply first." }, 400);
+    if (!anonymous && !name) return reply({ error: "Display name is required unless you reply anonymously." }, 400);
     const doc: Doc | null = await getJSON(env.KV, `post:${postId}`);
     if (!doc) return reply({ error: "Post not found." }, 404);
     const comments = Array.isArray(doc.comments) ? doc.comments : [];
-    if (comments.length >= 500) return reply({ error: "This post has reached its comment limit." }, 409);
-    const comment = { id: crypto.randomUUID(), name: name || "Anonymous", anonymous: !name, text, createdAt: Date.now() };
+    if (comments.length >= MAX_REPLIES) return reply({ error: "This thread has reached its reply limit." }, 409);
+    const comment = { id: crypto.randomUUID(), name: anonymous ? "Anonymous" : name, anonymous, text, createdAt: Date.now() };
     comments.push(comment);
     doc.comments = comments;
     await setJSON(env.KV, `post:${postId}`, doc);
-    return reply({ comment }, 201);
+    return reply({ comment, replyCount: comments.length }, 201);
   }
 
-  if (action === "react") {
-    const postId = body.postId, visitorId = body.visitorId, reaction = body.reaction;
-    if (!validId(postId) || !validVisitor(visitorId) || !["like", "dislike", "none"].includes(reaction)) return reply({ error: "Invalid reaction." }, 400);
+  if (action === "react") { // toggle one emoji reaction (Discord style)
+    const postId = body.postId, visitorId = body.visitorId, emoji = body.emoji;
+    if (!validId(postId) || !validVisitor(visitorId) || !EMOJIS.includes(emoji)) return reply({ error: "Invalid reaction." }, 400);
     const doc: Doc | null = await getJSON(env.KV, `post:${postId}`);
     if (!doc) return reply({ error: "Post not found." }, 404);
     const reactions = doc.reactions || {};
-    if (reaction === "none") delete reactions[visitorId]; else reactions[visitorId] = reaction;
+    const ids = reactions[emoji] || [];
+    reactions[emoji] = ids.includes(visitorId) ? ids.filter((v) => v !== visitorId) : [...ids, visitorId];
     doc.reactions = reactions;
     await setJSON(env.KV, `post:${postId}`, doc);
-    return reply({ ...counts(reactions), mine: reactions[visitorId] || "" });
+    return reply({ reactions: reactionList(doc, visitorId) });
+  }
+
+  if (action === "view") { // count a unique viewer when a thread is opened
+    const postId = body.postId, visitorId = body.visitorId;
+    if (!validId(postId) || !validVisitor(visitorId)) return reply({ error: "Invalid view." }, 400);
+    const doc: Doc | null = await getJSON(env.KV, `post:${postId}`);
+    if (!doc) return reply({ error: "Post not found." }, 404);
+    const views = doc.views || {};
+    if (!views[visitorId] && Object.keys(views).length < MAX_VIEWERS) {
+      views[visitorId] = 1;
+      doc.views = views;
+      await setJSON(env.KV, `post:${postId}`, doc);
+    }
+    return reply({ views: viewCount(doc) });
   }
 
   if (action === "delete") {
