@@ -138,20 +138,20 @@ input::placeholder { color: #6f69a3; }
   <div class="tabs" role="tablist" aria-label="What to edit">
     <button class="tab" role="tab" id="t-subs" data-tab="subs" aria-selected="true">Subscribers</button>
     <button class="tab" role="tab" id="t-games" data-tab="games" aria-selected="false">Pick your game<span id="n-games"></span></button>
+    <button class="tab" role="tab" id="t-series" data-tab="series">Featured series</button>
     <button class="tab" role="tab" id="t-playlists" data-tab="playlists" aria-selected="false">Playlists<span id="n-playlists"></span></button>
     <button class="tab" role="tab" id="t-videos" data-tab="videos" aria-selected="false">Latest videos<span id="n-videos"></span></button>
     <button class="tab" role="tab" id="t-day100" data-tab="day100">Day 100 thumbnails<span id="n-day100"></span></button>
-    <button class="tab" role="tab" id="t-series" data-tab="series">Featured series</button>
     <button class="tab" role="tab" id="t-community" data-tab="community">Community & Footer<span id="n-community"></span></button>
     <button class="tab" role="tab" id="t-moderation" data-tab="moderation">Discuss moderation</button>
   </div>
 
   <section class="panel" id="p-subs" role="tabpanel" aria-labelledby="t-subs"></section>
   <section class="panel" id="p-games" role="tabpanel" aria-labelledby="t-games" hidden></section>
+  <section class="panel" id="p-series" role="tabpanel" aria-labelledby="t-series" hidden></section>
   <section class="panel" id="p-playlists" role="tabpanel" aria-labelledby="t-playlists" hidden></section>
   <section class="panel" id="p-videos" role="tabpanel" aria-labelledby="t-videos" hidden></section>
   <section class="panel" id="p-day100" role="tabpanel" aria-labelledby="t-day100" hidden></section>
-  <section class="panel" id="p-series" role="tabpanel" aria-labelledby="t-series" hidden></section>
   <section class="panel" id="p-community" role="tabpanel" aria-labelledby="t-community" hidden></section>
   <section class="panel" id="p-moderation" role="tabpanel" aria-labelledby="t-moderation" hidden><h2>Let's Discuss moderation</h2><p class="lead">Review community posts. Delete a post to remove it along with its comments and reactions.</p><div class="admin-post-box"><label class="fl" for="adminPostText">Post as <b class="admin-red">Admin</b> <small>(shows in red on the public board)</small></label><textarea id="adminPostText" maxlength="2000" rows="3" placeholder="Write an announcement or start a thread as Admin (max 2000 characters)"></textarea><div class="rowbtns"><button class="btn" type="button" id="adminPostBtn">Post as Admin</button><span id="adminPostStatus" class="lead"></span></div></div><div class="rowbtns"><button class="btn ghost" type="button" id="moderationRefresh">Refresh posts</button></div><div id="moderationStatus" class="lead">Choose Refresh posts to load submissions.</div><div id="moderationList" class="moderation-list"></div></section>
 
@@ -237,7 +237,7 @@ input::placeholder { color: #6f69a3; }
   }
   function switchTab(name) {
     tab = name;
-    ['subs', 'games', 'playlists', 'videos', 'day100', 'series', 'community', 'moderation'].forEach(function (t) {
+    ['subs', 'games', 'series', 'playlists', 'videos', 'day100', 'community', 'moderation'].forEach(function (t) {
       $('t-' + t).setAttribute('aria-selected', String(t === name)); $('p-' + t).hidden = t !== name;
     });
     if (name === 'moderation') loadModeration();

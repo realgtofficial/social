@@ -133,7 +133,7 @@ body { overflow-x: clip; }
 @keyframes regrow { from { transform: scale(1.2, .16); opacity: .5; filter: blur(1px); } }
 
 /* playlists */
-.pl-head { margin-top: 40px; }
+.pl-head { margin-top: 0; }
 .pl-head h2 { font-size: clamp(20px, 3vw, 26px); }
 .pl-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .pl-chips button { font-family: var(--pixel); font-size: 13px; color: var(--ink); background: var(--surface); border: 2px solid var(--line); padding: 6px 12px; cursor: pointer; }
@@ -266,11 +266,6 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
     <div class="sec-head"><h2>Pick your game</h2></div>
     <div class="games" id="gamesGrid"></div>
 
-    <div class="sec-head pl-head">
-      <h2>Playlists</h2>
-      <div class="pl-chips" id="plChips" role="group" aria-label="Filter playlists by topic"></div>
-    </div>
-    <div class="playlists" id="plGrid"></div>
   </section>
 
   <section id="series">
@@ -284,6 +279,14 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
         <div><a class="btn gold" id="seriesButton" href="https://www.youtube.com/@gtofficial/playlists" target="_blank" rel="noopener">VIEW PLAYLISTS</a></div>
       </div>
     </div>
+  </section>
+
+  <section id="playlists">
+    <div class="sec-head pl-head">
+      <h2>Playlists</h2>
+      <div class="pl-chips" id="plChips" role="group" aria-label="Filter playlists by topic"></div>
+    </div>
+    <div class="playlists" id="plGrid"></div>
   </section>
 
   <section id="videos">
