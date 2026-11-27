@@ -9,7 +9,7 @@ export type SiteConfig = {
   playlists: { name: string; tag: string; count: number; unit: "videos" | "lessons"; url: string }[];
   videos: { id: string; list: string; title: string; game: string }[];
   day100Thumbnails: { title: string; image: string; link: string }[];
-  series: { title: string; desc: string; buttonText: string; buttonUrl: string; image: string };
+  series: { title: string; desc: string; buttonText: string; buttonUrl: string; image: string; images: string[] };
   communityCards: { title: string; desc: string; buttonText: string; buttonUrl: string; detail: string }[];
   footerText: string;
   footerLinkText: string;
@@ -91,7 +91,15 @@ export function sanitizeConfig(input: unknown): SiteConfig {
     return { title: text(o.title, 150, `Thumbnail ${i + 1} title`), image, link: ytLink(o.link, `Thumbnail ${i + 1} YouTube link`) };
   });
   const seriesInput = obj(c.series ?? { title: "100 Days in Pixelmon and Cobblemon", desc: "Catch, train and survive in Minecraft's Pokémon-style mods, one day at a time. Edit this card to point to your current series.", buttonText: "VIEW PLAYLISTS", buttonUrl: "https://www.youtube.com/@gtofficial/playlists", image: "" }, "Featured series");
-  const series = { title: text(seriesInput.title, 120, "Featured series title", true), desc: text(seriesInput.desc, 300, "Featured series description"), buttonText: text(seriesInput.buttonText, 60, "Featured series button label"), buttonUrl: text(seriesInput.buttonUrl, 500, "Featured series button URL"), image: text(seriesInput.image, 1000, "Featured series thumbnail URL") };
+  const series = { title: text(seriesInput.title, 120, "Featured series title", true), desc: text(seriesInput.desc, 300, "Featured series description"), buttonText: text(seriesInput.buttonText, 60, "Featured series button label"), buttonUrl: text(seriesInput.buttonUrl, 500, "Featured series button URL"), image: text(seriesInput.image, 1000, "Featured series thumbnail URL"), images: [] as string[] };
+  // Extra thumbnails that slide together with the main one (max 8).
+  series.images = list(seriesInput.images ?? [], 8, "Extra series thumbnails").map((v) => {
+    const u = text(v, 1000, "Extra series thumbnail URL");
+    if (!u) return "";
+    let x: URL; try { x = new URL(u); } catch { throw new ValidationError("Extra series thumbnails must be valid HTTPS URLs."); }
+    if (x.protocol !== "https:") throw new ValidationError("Extra series thumbnails must use HTTPS.");
+    return u;
+  }).filter(Boolean);
   if (series.buttonUrl) { let su: URL; try { su = new URL(series.buttonUrl); } catch { throw new ValidationError("Featured series button URL must be a valid HTTPS link."); } if (su.protocol !== "https:") throw new ValidationError("Featured series button URL must use HTTPS."); }
   if (series.image) { let si: URL; try { si = new URL(series.image); } catch { throw new ValidationError("Featured series thumbnail must be a valid HTTPS URL."); } if (si.protocol !== "https:") throw new ValidationError("Featured series thumbnail must use HTTPS."); }
   const communityCards = list(c.communityCards ?? [], 12, "Community cards").map((v, i) => {

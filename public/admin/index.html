@@ -63,7 +63,8 @@ input::placeholder { color: #6f69a3; }
 .state.dirty { color: var(--gold); }
 .state.dirty::before { background: var(--gold); }
 .savebtns { display: flex; gap: 10px; flex-wrap: wrap; }
-.admin-red{color:var(--red)}.admin-post-box{display:grid;gap:8px;margin:0 0 18px;padding:14px;border:2px solid var(--red);background:var(--surface)}.admin-post-box textarea{width:100%}.admin-tag{background:var(--red);color:#1a0003;font-size:11px;font-weight:800;padding:2px 6px;margin-left:6px}.mod-reply{display:grid;gap:6px;margin-top:10px}.mod-reply textarea{width:100%}.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
+.admin-red{color:var(--red)}.admin-post-box{display:grid;gap:8px;margin:0 0 18px;padding:14px;border:2px solid var(--red);background:var(--surface)}.admin-post-box textarea{width:100%}.admin-tag{background:var(--red);color:#1a0003;font-size:11px;font-weight:800;padding:2px 6px;margin-left:6px}.mod-reply{display:grid;gap:6px;margin-top:10px}.mod-reply textarea{width:100%}.extra-thumbs{display:grid;gap:10px;margin:8px 0 12px}.extra-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center}.extra-row input{width:100%}@media(max-width:640px){.extra-row{grid-template-columns:1fr auto}.extra-row b{grid-column:1/-1}}
+.moderation-list{display:grid;gap:12px}.moderation-post{border:2px solid var(--line);background:var(--surface);padding:14px;overflow-wrap:anywhere}.moderation-post header{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}.moderation-post p{white-space:pre-wrap}.moderation-meta{color:var(--muted);font-size:12px}
 .dl-form{display:grid;gap:12px}.dl-form textarea{width:100%;background:var(--bg);border:2px solid var(--line);padding:10px 12px;border-radius:0;font:inherit;color:inherit;resize:vertical;min-height:110px}.dl-form textarea:focus{border-color:var(--green);outline:none}.dl-links{margin:8px 0;padding-left:18px;overflow-wrap:anywhere;color:var(--muted);font-size:13px}.dl-links a{color:var(--green)}
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
 .tab { font-family: var(--pixel); font-size: 14px; padding: 9px 14px; background: var(--surface); border: 2px solid var(--line); cursor: pointer; }
@@ -228,7 +229,7 @@ input::placeholder { color: #6f69a3; }
       playlists: Array.isArray(d.playlists) ? d.playlists : [],
       videos: Array.isArray(d.videos) ? d.videos : [],
       day100Thumbnails: Array.isArray(d.day100Thumbnails) ? d.day100Thumbnails : [],
-      series: Object.assign({ title: '100 Days in Pixelmon and Cobblemon', desc: "Catch, train and survive in Minecraft's Pokémon-style mods, one day at a time. Edit this card to point to your current series.", buttonText: 'VIEW PLAYLISTS', buttonUrl: 'https://www.youtube.com/@gtofficial/playlists', image: '' }, d.series || {}),
+      series: Object.assign({ title: '100 Days in Pixelmon and Cobblemon', desc: "Catch, train and survive in Minecraft's Pokémon-style mods, one day at a time. Edit this card to point to your current series.", buttonText: 'VIEW PLAYLISTS', buttonUrl: 'https://www.youtube.com/@gtofficial/playlists', image: '', images: [] }, d.series || {}),
       communityCards: Array.isArray(d.communityCards) ? d.communityCards : [{ title: 'YouTube', desc: 'Subscribe and turn on the bell for daily uploads.', buttonText: 'SUBSCRIBE', buttonUrl: 'https://www.youtube.com/@gtofficial?sub_confirmation=1', detail: '2.3K' }, { title: 'Discord', desc: 'Chat with other fans and find players. Add your invite link here.', buttonText: 'ADD INVITE LINK', buttonUrl: '', detail: '' }, { title: 'Play with us', desc: 'Server address (replace with yours):', buttonText: '', buttonUrl: '', detail: 'play.example.com' }], footerText: typeof d.footerText === 'string' ? d.footerText : '© 2026 GT Official. Fan content, not affiliated with Mojang, Microsoft, Roblox or Supercell.', footerLinkText: typeof d.footerLinkText === 'string' ? d.footerLinkText : 'youtube.com/@gtofficial', footerLinkUrl: typeof d.footerLinkUrl === 'string' ? d.footerLinkUrl : 'https://www.youtube.com/@gtofficial'
     };
   }
@@ -590,6 +591,30 @@ input::placeholder { color: #6f69a3; }
       field('Thumbnail URL (optional, 1280 × 720 recommended)', el('div', { class: 'f' }, [textIn(v.image, function (t) { v.image = t; paint(); touch(); }, { placeholder: 'https://image-host/series-thumbnail.jpg', maxlength: '1000' }), preview, status]), null, 'wide')
     ]));
     paint();
+
+    /* Extra thumbnails: they slide together with the main thumbnail on the homepage. */
+    if (!Array.isArray(v.images)) v.images = [];
+    var extraBox = el('div', { class: 'extra-thumbs' });
+    var addBtn = el('button', { type: 'button', class: 'btn', text: '+ ADD EXTRA THUMBNAIL' });
+    function paintExtras() {
+      extraBox.textContent = '';
+      addBtn.disabled = v.images.length >= 8;
+      if (!v.images.length) extraBox.appendChild(el('small', { text: 'No extra thumbnails yet. Add some and they will slide automatically after the main thumbnail.' }));
+      v.images.forEach(function (url, i) {
+        var thumb = el('div', { class: 'thumbbox' }); thumb.style.width = '140px';
+        function pv() { thumb.textContent = ''; if (/^https:\/\//i.test(v.images[i] || '')) thumb.appendChild(el('img', { alt: 'Extra thumbnail ' + (i + 1), src: v.images[i] })); else thumb.textContent = 'No preview'; }
+        var input = textIn(url, function (t) { v.images[i] = t; pv(); touch(); }, { placeholder: 'https://image-host/extra-thumbnail.jpg', maxlength: '1000' });
+        var del = el('button', { type: 'button', class: 'mini danger', text: 'Remove' });
+        del.addEventListener('click', function () { v.images.splice(i, 1); paintExtras(); touch(); });
+        extraBox.appendChild(el('div', { class: 'extra-row' }, [el('b', { text: 'Extra ' + (i + 1) }), input, thumb, del]));
+        pv();
+      });
+    }
+    addBtn.addEventListener('click', function () { if (v.images.length < 8) { v.images.push(''); paintExtras(); touch(); } });
+    box.appendChild(el('h3', { text: 'Extra sliding thumbnails (optional, up to 8)' }));
+    box.appendChild(el('p', { class: 'lead', text: 'The main thumbnail above is slide 1. Extra thumbnails slide in after it automatically. Any size works: it fits the box and the rest is filled with a blurred copy.' }));
+    box.appendChild(extraBox); box.appendChild(addBtn);
+    paintExtras();
   }
 
   /* ---------- panel: Community cards and footer ---------- */
@@ -640,6 +665,7 @@ input::placeholder { color: #6f69a3; }
     cfg.communityCards.forEach(function (v, i) { if (!String(v.title || '').trim()) out.push({ tab: 'community', msg: 'Community box ' + (i + 1) + ' needs a title.' }); else if (v.buttonUrl && !/^https:\//i.test(v.buttonUrl)) out.push({ tab: 'community', msg: 'Community box ' + (i + 1) + ' link must start with HTTPS.' }); });
     if (cfg.series && cfg.series.buttonUrl && !/^https:\//i.test(cfg.series.buttonUrl)) out.push({ tab: 'series', msg: 'Featured series link must start with HTTPS.' });
     if (cfg.series && cfg.series.image && !/^https:\//i.test(cfg.series.image)) out.push({ tab: 'series', msg: 'Featured series thumbnail must be an HTTPS image URL.' });
+    (cfg.series && cfg.series.images || []).forEach(function (u, i) { if (u && !/^https:\//i.test(u)) out.push({ tab: 'series', msg: 'Extra thumbnail ' + (i + 1) + ' must be an HTTPS image URL.' }); });
     if (cfg.footerLinkUrl && !/^https:\//i.test(cfg.footerLinkUrl)) out.push({ tab: 'community', msg: 'Footer link must start with HTTPS.' });
     cfg.day100Thumbnails.forEach(function (v, i) {
       if (!/^https:\/\//i.test(v.image || "")) out.push({ tab: "day100", msg: "Thumbnail " + (i + 1) + " needs a direct HTTPS image URL." });
