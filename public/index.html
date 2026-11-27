@@ -234,11 +234,9 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
 .day100-slide.prev, .series-slide.prev { opacity:0; transform:translateX(-10%) scale(.96); z-index:0; }
 .day100-slide.active img.fg, .series-slide.active img.fg { animation:fxzoom 6s ease-out both; }
 @keyframes fxzoom { from { transform:scale(1); } to { transform:scale(1.035); } }
-.fx-bar { position:absolute; left:0; bottom:0; height:4px; width:100%; background:var(--gold); transform-origin:left; z-index:4; animation:fxbar var(--fx-ms,3000ms) linear forwards; }
-@keyframes fxbar { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 .fx-dots { position:absolute; left:0; right:0; bottom:12px; display:flex; gap:6px; justify-content:center; z-index:5; }
 .fx-dots button { width:10px; height:10px; border-radius:50%; border:1px solid #fff; background:rgba(0,0,0,.5); padding:0; cursor:pointer; } .fx-dots button.active { background:var(--gold); }
-@media (prefers-reduced-motion: reduce) { .day100-slide, .series-slide { transform:none !important; transition:opacity .4s ease; } .day100-slide img.fg, .series-slide img.fg { animation:none !important; } .fx-bar { display:none; } }
+@media (prefers-reduced-motion: reduce) { .day100-slide, .series-slide { transform:none !important; transition:opacity .4s ease; } .day100-slide img.fg, .series-slide img.fg { animation:none !important; } }
 .day100-slide img.fg { position:relative; z-index:1; width:100%; height:100%; object-fit:contain; display:block; }
 .day100-slide img.bgfill, .series .art img.bgfill { position:absolute; left:-24px; top:-24px; width:calc(100% + 48px); height:calc(100% + 48px); max-width:none; min-height:0; object-fit:cover; filter:blur(22px) brightness(.65); z-index:0; pointer-events:none; }
 .day100-slide a { display:block; width:100%; height:100%; position:relative; overflow:hidden; }
@@ -357,18 +355,16 @@ function runSlider(root, slideSel, ms) {
   clearInterval(root._fxTimer);
   var slides = [].slice.call(root.querySelectorAll(slideSel)), dots = [].slice.call(root.querySelectorAll('[data-dot]')), cur = 0, paused = false;
   if (!slides.length) return;
-  function bar() { var old = root.querySelector('.fx-bar'); if (old) old.remove(); if (slides.length > 1) { var b = document.createElement('i'); b.className = 'fx-bar'; b.style.setProperty('--fx-ms', ms + 'ms'); root.appendChild(b); } }
   function go(n) {
     var old = cur; cur = (n + slides.length) % slides.length;
     slides.forEach(function (s, i) { s.classList.remove('active', 'prev'); if (i === old && old !== cur) s.classList.add('prev'); });
     slides[cur].classList.add('active');
     dots.forEach(function (d, i) { d.classList.toggle('active', i === cur); });
-    bar();
   }
   function start() { clearInterval(root._fxTimer); if (slides.length > 1) root._fxTimer = setInterval(function () { if (!paused && !document.hidden) go(cur + 1); }, ms); }
   dots.forEach(function (d, i) { d.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); go(i); start(); }); });
-  root.onmouseenter = function () { paused = true; var b = root.querySelector('.fx-bar'); if (b) b.style.animationPlayState = 'paused'; };
-  root.onmouseleave = function () { paused = false; var b = root.querySelector('.fx-bar'); if (b) b.style.animationPlayState = 'running'; };
+  root.onmouseenter = function () { paused = true; };
+  root.onmouseleave = function () { paused = false; };
   go(0); start();
 }
 var day100Sig = '';
@@ -450,7 +446,7 @@ function renderSeries(c) {
     var sig = JSON.stringify([imgs, v.title]);
     if (art._sig !== sig) {
       art._sig = sig; clearInterval(art._fxTimer);
-      art.querySelectorAll('img,.series-slide,.fx-dots,.fx-bar').forEach(function (o) { o.remove(); });
+      art.querySelectorAll('img,.series-slide,.fx-dots').forEach(function (o) { o.remove(); });
       imgs.forEach(function (u, i) {
         var slide = document.createElement('div'); slide.className = 'series-slide';
         var bg = document.createElement('img'); bg.className = 'bgfill'; bg.src = u; bg.alt = ''; bg.setAttribute('aria-hidden', 'true');
