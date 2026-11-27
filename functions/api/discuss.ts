@@ -14,7 +14,11 @@ const MAX_VIEWERS = 20000;
 // Each thread is ONE KV entry "post:<id>" holding the post, its reactions, replies and viewers.
 // The id starts with an inverted timestamp, so listing keys returns the newest threads first.
 // Approximate visitor state/region from Cloudflare (IP based, no permission popup). Shown for anonymous posts too.
-const regionOf = (req: Request) => clean((req as any).cf?.region, 40);
+// Indian states/UTs a visitor may pick themselves (IP lookups are sometimes off by a state).
+const STATES = ["Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"];
+// The visitor's own pick wins; otherwise fall back to Cloudflare's IP-based guess.
+const regionOf = (req: Request, picked?: unknown) =>
+  typeof picked === "string" && STATES.includes(picked) ? picked : clean((req as any).cf?.region, 40);
 
 // Names that only the real admin may use (posting from /admin).
 const reservedName = (name: string) => /admin|gtofficial|moderator/.test(name.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -108,7 +112,7 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     if (!asAdmin && !anonymous && reservedName(name)) return reply({ error: "That name is reserved. Please choose another name." }, 400);
     if (!validVisitor(visitorId)) return reply({ error: "Refresh the page and try again." }, 400);
     const now = Date.now(), id = newId(now);
-    const region = asAdmin ? "" : regionOf(req);
+    const region = asAdmin ? "" : regionOf(req, body.state);
     const doc: Doc = { id, name: anonymous ? "Anonymous" : name, region, admin: asAdmin, anonymous, text, createdAt: now, visitorId, reactions: {}, comments: [], views: {} };
     try {
       await setJSON(env.KV, `post:${id}`, doc);
@@ -130,7 +134,7 @@ export const onRequest = async ({ request: req, env }: { request: Request; env: 
     if (!doc) return reply({ error: "Post not found." }, 404);
     const comments = Array.isArray(doc.comments) ? doc.comments : [];
     if (comments.length >= MAX_REPLIES) return reply({ error: "This thread has reached its reply limit." }, 409);
-    const comment = { id: crypto.randomUUID(), name: anonymous ? "Anonymous" : name, region: asAdmin ? "" : regionOf(req), admin: asAdmin, anonymous, text, createdAt: Date.now() };
+    const comment = { id: crypto.randomUUID(), name: anonymous ? "Anonymous" : name, region: asAdmin ? "" : regionOf(req, body.state), admin: asAdmin, anonymous, text, createdAt: Date.now() };
     comments.push(comment);
     doc.comments = comments;
     await setJSON(env.KV, `post:${postId}`, doc);
