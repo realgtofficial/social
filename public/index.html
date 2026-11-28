@@ -183,8 +183,8 @@ body { overflow-x: clip; }
 .discuss-intro { color:var(--muted); margin:-8px 0 18px; }
 .discuss-form { background:var(--surface); border:3px solid #000; box-shadow:6px 6px 0 var(--violet); padding:18px; display:grid; gap:12px; }
 .discuss-form-head,.discuss-form-foot,.discuss-list-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.discuss-state-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; } .discuss-state-row label { font-weight:700; flex:1 1 260px; } .discuss-state-row small { color:var(--muted); font-weight:400; } .discuss-state-row select { background:var(--bg,#0d0b1e); color:var(--ink); border:2px solid var(--line); padding:9px 10px; font:inherit; max-width:100%; }
-.discuss-state-row .mini-btn { background:var(--surface); color:var(--green); border:2px solid var(--line); padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; } .discuss-state-row .mini-btn:hover:not(:disabled) { border-color:var(--green); } .discuss-state-row .mini-btn:disabled { opacity:.5; cursor:wait; } .discuss-state-row #discussStateMsg { flex-basis:100%; min-height:1.1em; }
+.discuss-state-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; } .discuss-state-row label { font-weight:700; flex:1 1 260px; } .discuss-state-row small { color:var(--muted); font-weight:400; }
+.discuss-state-row .state-val { color:var(--gold); } .discuss-state-row .mini-btn { background:var(--surface); color:var(--green); border:2px solid var(--line); padding:9px 12px; font:inherit; font-weight:700; cursor:pointer; } .discuss-state-row .mini-btn:hover:not(:disabled) { border-color:var(--green); } .discuss-state-row .mini-btn:disabled { opacity:.5; cursor:wait; } .discuss-state-row #discussStateMsg { flex-basis:100%; min-height:1.1em; }
 .discuss-form-head label { font-weight:700; } .discuss-form-head small,.discuss-form-foot small { color:var(--muted); }
 .anon-toggle { display:flex; gap:7px; align-items:center; font-size:14px; color:var(--green); }
 .discuss-form input[type=text],.discuss-form input:not([type]),.discuss-form textarea { width:100%; padding:12px; border:2px solid var(--line); background:#0d0b1e; color:var(--ink); font:inherit; border-radius:3px; }
@@ -320,7 +320,7 @@ footer { border-top: 3px solid var(--line); margin-top: 40px; padding-block: 26p
     <div class="sec-head"><h2>Let's Discuss</h2><span class="discuss-live">COMMUNITY BOARD</span></div>
     <div class="discuss-intro">Share gaming ideas, find co-op players, ask questions or post anything gaming-related. Use your name or post anonymously.</div>
     <form id="discussForm" class="discuss-form">
-      <div class="discuss-state-row"><label for="discussState">Your state <small>(shown next to your name; pick yours if auto-detect is wrong)</small></label><button type="button" class="mini-btn" id="discussLocate">📍 Detect my location</button><select id="discussState"><option value="">Auto-detect</option><option>Andaman and Nicobar Islands</option><option>Andhra Pradesh</option><option>Arunachal Pradesh</option><option>Assam</option><option>Bihar</option><option>Chandigarh</option><option>Chhattisgarh</option><option>Dadra and Nagar Haveli and Daman and Diu</option><option>Delhi</option><option>Goa</option><option>Gujarat</option><option>Haryana</option><option>Himachal Pradesh</option><option>Jammu and Kashmir</option><option>Jharkhand</option><option>Karnataka</option><option>Kerala</option><option>Ladakh</option><option>Lakshadweep</option><option>Madhya Pradesh</option><option>Maharashtra</option><option>Manipur</option><option>Meghalaya</option><option>Mizoram</option><option>Nagaland</option><option>Odisha</option><option>Puducherry</option><option>Punjab</option><option>Rajasthan</option><option>Sikkim</option><option>Tamil Nadu</option><option>Telangana</option><option>Tripura</option><option>Uttar Pradesh</option><option>Uttarakhand</option><option>West Bengal</option></select><small id="discussStateMsg" role="status"></small></div>
+      <div class="discuss-state-row"><label>Your state <small>(shown next to your name)</small></label><b id="discussStateVal" class="state-val">Not set</b><button type="button" class="mini-btn" id="discussLocate">📍 Detect my location</button><small id="discussStateMsg" role="status"></small></div>
       <div class="discuss-form-head"><label for="discussName">Display name <small>(turns off when anonymous is ticked)</small></label><label class="anon-toggle"><input id="discussAnon" type="checkbox"> Post anonymously</label></div>
       <input id="discussName" maxlength="30" placeholder="Your name" autocomplete="nickname">
       <textarea id="discussText" maxlength="2000" rows="4" placeholder="What would you like to discuss? (max 2000 characters)" required></textarea>
@@ -675,35 +675,37 @@ var yrEl = document.getElementById('yr'); if (yrEl) yrEl.textContent = new Date(
   var KEY='gt-discuss-visitor-v1', NAMEKEY='gt-discuss-name-v1';
   function visitor(){var id='';try{id=localStorage.getItem(KEY)||'';if(!/^[\w-]{8,80}$/.test(id)){id=(crypto.randomUUID?crypto.randomUUID():('v'+Math.random().toString(36).slice(2)+Date.now()));localStorage.setItem(KEY,id);}}catch(e){id='visitor_'+Math.random().toString(36).slice(2)+Date.now();}return id;}
   var visitorId=visitor();
-  var stateEl=document.getElementById('discussState'),STKEY='gt-discuss-state-v1';
-  if(stateEl){try{var ss=localStorage.getItem(STKEY);if(ss)stateEl.value=ss;if(stateEl.selectedIndex<0)stateEl.value='';}catch(e){}stateEl.addEventListener('change',function(){try{localStorage.setItem(STKEY,stateEl.value);}catch(e){}});}
-  function pickedState(){return stateEl?stateEl.value:'';}
-  /* Optional precise state: browser location -> reverse geocode in the browser. Coordinates never go to our server. */
-  var locBtn=document.getElementById('discussLocate'),stateMsg=document.getElementById('discussStateMsg');
+  /* State comes only from "Detect my location". The last detected state is remembered in this browser, so the visitor does not have to allow location again. */
+  var STKEY='gt-discuss-state-v1',STATES=["Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir", "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"],myState='';
+  var locBtn=document.getElementById('discussLocate'),stateMsg=document.getElementById('discussStateMsg'),stateVal=document.getElementById('discussStateVal');
   function say(t,bad){if(stateMsg){stateMsg.textContent=t||'';stateMsg.style.color=bad?'var(--red)':'var(--gold)';}}
+  function showState(){if(stateVal)stateVal.textContent=myState||'Not set';if(locBtn)locBtn.textContent=myState?'📍 Update location':'📍 Detect my location';}
+  function setState(st){myState=st;try{localStorage.setItem(STKEY,st);}catch(e){}showState();}
+  try{var saved=localStorage.getItem(STKEY);if(saved&&STATES.indexOf(saved)>-1)myState=saved;}catch(e){}
+  showState();
+  function pickedState(){return myState;}
   function normState(v){return String(v||'').toLowerCase().replace(/&/g,'and').replace(/\b(state|union territory|nct|national capital territory)\s+of\b/g,'').replace(/[^a-z ]/g,' ').replace(/\s+/g,' ').trim();}
   function matchState(name){
-    var n=normState(name);if(!n)return '';if(n==='orissa')n='odisha';if(n==='uttaranchal')n='uttarakhand';
-    var opts=[].slice.call(stateEl.options).map(function(o){return o.value;}).filter(Boolean),i;
-    for(i=0;i<opts.length;i++)if(normState(opts[i])===n)return opts[i];
-    for(i=0;i<opts.length;i++){var o=normState(opts[i]);if(n.indexOf(o)>-1||o.indexOf(n)>-1)return opts[i];}
+    var n=normState(name),i;if(!n)return '';if(n==='orissa')n='odisha';if(n==='uttaranchal')n='uttarakhand';
+    for(i=0;i<STATES.length;i++)if(normState(STATES[i])===n)return STATES[i];
+    for(i=0;i<STATES.length;i++){var o=normState(STATES[i]);if(n.indexOf(o)>-1||o.indexOf(n)>-1)return STATES[i];}
     return '';
   }
   function detectState(silent){
-    if(!stateEl||!navigator.geolocation){if(!silent)say('Location is not supported in this browser. Please pick your state.',true);return;}
+    if(!navigator.geolocation){if(!silent)say('Location is not supported in this browser.',true);return;}
     if(!silent){locBtn.disabled=true;say('Detecting… allow location when your browser asks.');}
     navigator.geolocation.getCurrentPosition(function(pos){
       var url='https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=en&latitude='+encodeURIComponent(pos.coords.latitude)+'&longitude='+encodeURIComponent(pos.coords.longitude);
       fetch(url).then(function(r){if(!r.ok)throw new Error('lookup failed');return r.json();}).then(function(d){
         var st=matchState(d.principalSubdivision);
-        if(!st){if(!silent)say('Could not match your state. Please pick it from the list.',true);return;}
-        stateEl.value=st;try{localStorage.setItem(STKEY,st);}catch(e){}say('Detected: '+st);
-      }).catch(function(){if(!silent)say('Could not detect your state. Please pick it from the list.',true);}).finally(function(){if(locBtn)locBtn.disabled=false;});
-    },function(err){if(!silent)say(err&&err.code===1?'Location permission was blocked. Please pick your state from the list.':'Could not get your location. Please pick your state from the list.',true);if(locBtn)locBtn.disabled=false;},{enableHighAccuracy:false,timeout:12000,maximumAge:3600000});
+        if(!st){if(!silent)say('Could not match your state.',true);return;}
+        setState(st);say(silent?'':'Detected: '+st+'. Saved for next time.');
+      }).catch(function(){if(!silent)say('Could not detect your state. Please try again.',true);}).finally(function(){if(locBtn)locBtn.disabled=false;});
+    },function(err){if(!silent)say(err&&err.code===1?'Location permission was blocked. Allow it in your browser settings and try again.':'Could not get your location. Please try again.',true);if(locBtn)locBtn.disabled=false;},{enableHighAccuracy:false,timeout:12000,maximumAge:3600000});
   }
   if(locBtn)locBtn.addEventListener('click',function(){detectState(false);});
-  /* If the visitor already allowed location once, refresh the state silently (only when they haven't picked one by hand). */
-  try{if(navigator.permissions&&stateEl&&!stateEl.value)navigator.permissions.query({name:'geolocation'}).then(function(r){if(r.state==='granted')detectState(true);}).catch(function(){});}catch(e){}
+  /* If the browser already has location allowed for this site, quietly refresh the saved state (no popup). */
+  try{if(navigator.permissions)navigator.permissions.query({name:'geolocation'}).then(function(r){if(r.state==='granted')detectState(true);}).catch(function(){});}catch(e){}
   function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function who(o){if(o.admin)return '<span class="discuss-admin">Admin</span> <span class="discuss-admin-badge">ADMIN</span>';return escHtml(o.anonymous?'Anonymous':(o.name||'Member'))+(o.region?' <span class="discuss-region">| '+escHtml(o.region)+'</span>':'');}
   function date(v){try{return new Date(v).toLocaleString();}catch(e){return 'recently';}}
